@@ -104,6 +104,25 @@ export default function DashboardPage() {
 
   const visibleMetrics = allMetrics.filter(m => widgetConfig[m.key]);
 
+  // Helper function to return dynamic auto-fitting grid columns based on active visible KPI count
+  const getKpiGridClass = (count: number) => {
+    switch (count) {
+      case 1:
+        return 'grid-cols-1';
+      case 2:
+        return 'grid-cols-1 sm:grid-cols-2';
+      case 3:
+        return 'grid-cols-1 sm:grid-cols-3';
+      case 4:
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+      case 5:
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5';
+      case 6:
+      default:
+        return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6';
+    }
+  };
+
   // Lifecycle Pipeline Stages
   const lifecycleStages = [
     { name: 'Initiation', count: 2 },
@@ -122,6 +141,9 @@ export default function DashboardPage() {
     { id: 'PRJ-2026-003', name: 'FTTx Access Cluster Medan', customer: 'XL Axiata', type: 'FTTx', distance: '18.2 KM', cost: 'Rp 1.8 B', margin: '28.0%', status: 'DRM' },
     { id: 'PRJ-2026-004', name: 'Enterprise Link Bank Mandiri HQ', customer: 'Bank Mandiri', type: 'Enterprise', distance: '6.4 KM', cost: 'Rp 950 M', margin: '38.4%', status: 'Commissioning' },
   ];
+
+  const isBothSummaryVisible = widgetConfig.financialControl && widgetConfig.engineeringSummary;
+  const summaryGridClass = isBothSummaryVisible ? 'grid-cols-1 lg:grid-cols-2 gap-6' : 'grid-cols-1 gap-6';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -149,7 +171,7 @@ export default function DashboardPage() {
                   Atur Tampilan Dashboard
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Pilih widget &amp; komponen mana saja yang ingin Anda tampilkan pada halaman dashboard utama.
+                  Pilih widget &amp; komponen mana saja yang ingin Anda tampilkan pada halaman dashboard utama. Ukuran kartu akan menyesuaikan secara otomatis.
                 </DialogDescription>
               </DialogHeader>
 
@@ -225,7 +247,7 @@ export default function DashboardPage() {
 
                 {/* Individual KPI Cards Toggle */}
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Metric KPI Cards</span>
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Metric KPI Cards (Auto-Resizing)</span>
                   
                   {allMetrics.map((m) => (
                     <div
@@ -281,7 +303,7 @@ export default function DashboardPage() {
 
       {/* 1. Project Lifecycle Pipeline Distribution Card */}
       {widgetConfig.pipeline && (
-        <Card className="border border-border shadow-none ring-0">
+        <Card className="border border-border shadow-none ring-0 transition-all duration-300">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
@@ -307,13 +329,13 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* 2. Dynamic Metric KPI Cards */}
+      {/* 2. Dynamic Metric KPI Cards (Auto-Resizing Grid Layout) */}
       {visibleMetrics.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className={cn("grid gap-4 transition-all duration-300", getKpiGridClass(visibleMetrics.length))}>
           {visibleMetrics.map((card) => {
             const Icon = card.icon;
             return (
-              <Card key={card.title} className="border border-border shadow-none ring-0">
+              <Card key={card.title} className="border border-border shadow-none ring-0 transition-all duration-300 hover:border-primary/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
                     {card.title}
@@ -341,12 +363,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 3. Financial & Engineering Summaries */}
+      {/* 3. Dynamic Auto-Fitting Financial & Engineering Summaries */}
       {(widgetConfig.financialControl || widgetConfig.engineeringSummary) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={cn("grid transition-all duration-300", summaryGridClass)}>
           {/* Financial & Margin Control */}
           {widgetConfig.financialControl && (
-            <Card className="border border-border shadow-none ring-0">
+            <Card className="border border-border shadow-none ring-0 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle className="text-base font-semibold">Financial &amp; Margin Control</CardTitle>
@@ -394,7 +416,7 @@ export default function DashboardPage() {
 
           {/* Engineering & Route Summary */}
           {widgetConfig.engineeringSummary && (
-            <Card className="border border-border shadow-none ring-0">
+            <Card className="border border-border shadow-none ring-0 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle className="text-base font-semibold">Engineering &amp; Route Summary</CardTitle>
@@ -444,7 +466,7 @@ export default function DashboardPage() {
 
       {/* 4. Active Projects Overview Table */}
       {widgetConfig.projectsTable && (
-        <Card className="border border-border shadow-none ring-0">
+        <Card className="border border-border shadow-none ring-0 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-base font-semibold">Active Projects Overview</CardTitle>
