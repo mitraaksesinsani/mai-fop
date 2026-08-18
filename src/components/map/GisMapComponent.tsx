@@ -351,7 +351,37 @@ export default function GisMapComponent({
   const [zoomLevel, setZoomLevel] = useState<number>(8);
   const [fitBoundsTrigger, setFitBoundsTrigger] = useState<L.LatLngBoundsExpression | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchedLocation, setSearchedLocation] = useState<[number, number] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to parse coordinate string (e.g. "-6.2000, 106.8166" or "-6.2000 106.8166")
+  const handleExecuteSearch = (queryStr: string) => {
+    if (!queryStr.trim()) return;
+    const parts = queryStr.trim().split(/[\s,]+/);
+    if (parts.length === 2) {
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+        setSearchedLocation([lat, lng]);
+        setFitBoundsTrigger([[lat - 0.005, lng - 0.005], [lat + 0.005, lng + 0.005]]);
+        return;
+      }
+    }
+
+    // Search matching KML track by name
+    const matchedTrack = safeTracks.find(t =>
+      t.trackName.toLowerCase().includes(queryStr.toLowerCase()) ||
+      t.projectName.toLowerCase().includes(queryStr.toLowerCase())
+    );
+    if (matchedTrack && matchedTrack.coordinates && matchedTrack.coordinates.length > 0) {
+      if (matchedTrack.coordinates.length === 1) {
+        const pt = matchedTrack.coordinates[0];
+        setFitBoundsTrigger([[pt[0] - 0.005, pt[1] - 0.005], [pt[0] + 0.005, pt[1] + 0.005]]);
+      } else {
+        setFitBoundsTrigger(L.latLngBounds(matchedTrack.coordinates));
+      }
+    }
+  };
 
   // In-App Google Earth KML Route Drawing State
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -585,21 +615,54 @@ export default function GisMapComponent({
             )}
           </>
         )}
+        {/* Render Searched Location Pin Target */}
+        {searchedLocation && (
+          <Marker position={searchedLocation}>
+            <Popup>
+              <div className="text-xs font-bold text-primary flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-red-500" />
+                Target Search Coordinates
+              </div>
+              <div className="font-mono text-[11px] text-slate-700 mt-1">
+                Lat: {searchedLocation[0].toFixed(6)}, Lng: {searchedLocation[1].toFixed(6)}
+              </div>
+              <button
+                onClick={() => setSearchedLocation(null)}
+                className="mt-2 text-[10px] text-muted-foreground hover:text-red-500 underline cursor-pointer"
+              >
+                Clear Pin
+              </button>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
 
       {/* MapCN Floating Top Header Toolbar */}
       <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Left Search Bar */}
+        {/* Left Coordinate / Track Search Bar */}
         <div className="flex items-center gap-2 pointer-events-auto bg-background/95 backdrop-blur-md border border-border p-1.5 rounded-lg shadow-none">
           <div className="relative flex items-center">
             <Search className="w-3.5 h-3.5 absolute left-2.5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search route or node..."
-              className="h-8 text-xs pl-8 w-44 sm:w-60 border-0 bg-transparent focus-visible:ring-0"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleExecuteSearch(searchQuery);
+                }
+              }}
+              placeholder="Search Lat, Lng (e.g. -6.200, 106.816)..."
+              className="h-8 text-xs pl-8 w-52 sm:w-72 border-0 bg-transparent focus-visible:ring-0"
             />
           </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleExecuteSearch(searchQuery)}
+            className="h-7 text-xs px-2 cursor-pointer font-semibold text-primary hover:bg-primary/10"
+          >
+            Go
+          </Button>
           <Badge
             variant={selectedProjectFilter === 'ALL' ? 'default' : 'outline'}
             className="text-[10px] font-mono border-border uppercase"
