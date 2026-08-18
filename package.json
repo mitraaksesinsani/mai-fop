@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002 -H 0.0.0.0 --experimental-https",
+    "dev": "next dev -p 3002 -H 0.0.0.0",
+    "dev:https": "next dev -p 3002 -H 0.0.0.0 --experimental-https",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3002",
     "lint": "eslint"
   },
   "dependencies": {
@@ -55,6 +56,7 @@
     "@types/react-dom": "^19",
     "@types/react-signature-canvas": "^1.0.7",
     "@types/uuid": "^10.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "typescript": "^5"
