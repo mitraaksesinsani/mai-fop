@@ -5,16 +5,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  Map,
   FolderKanban,
-  FileText,
-  ShoppingCart,
-  Truck,
-  Warehouse,
-  ArrowLeftRight,
-  Package,
-  BarChart3,
-  Database,
-  Zap,
+  FileSpreadsheet,
+  MapPin,
+  FileCheck2,
+  HardHat,
+  ClipboardCheck,
+  CheckSquare2,
+  CircleDollarSign,
+  ShieldCheck,
+  History,
+  Settings,
+  ChevronRight,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,7 +39,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -49,93 +51,116 @@ const groupedNavigation = [
         href: '/',
         icon: LayoutDashboard,
       },
+      {
+        label: 'GIS Spatial Map',
+        href: '/gis',
+        icon: Map,
+      },
     ]
   },
   {
-    group: 'Transactional',
+    group: 'Project Lifecycle (FOPLP)',
     items: [
       {
-        label: 'Project Management',
+        label: 'Project Initiation',
         href: '/projects',
         icon: FolderKanban,
         children: [
-          { label: 'Project List', href: '/projects' },
-          { label: 'Material Requirement', href: '/projects/requirements' },
+          { label: 'Project Master List', href: '/projects' },
+          { label: 'Classification', href: '/projects/classification' },
         ],
       },
       {
-        label: 'RFC Management',
-        href: '/rfc',
-        icon: FileText,
+        label: 'Engineering Planning',
+        href: '/planning',
+        icon: FileSpreadsheet,
         children: [
-          { label: 'RFC List', href: '/rfc' },
-          { label: 'Approval Queue', href: '/rfc/approval' },
-          { label: 'RFC History', href: '/rfc/history' },
+          { label: 'BOQ Management', href: '/planning/boq' },
+          { label: 'Route & Catuan Fiber', href: '/planning/route' },
+          { label: 'Commercial & Margin', href: '/planning/commercial' },
         ],
       },
       {
-        label: 'Procurement',
-        href: '/procurement',
-        icon: ShoppingCart,
+        label: 'Survey Management',
+        href: '/survey',
+        icon: MapPin,
         children: [
-          { label: 'Active POs', href: '/procurement' },
-          { label: 'PO History', href: '/procurement/history' },
+          { label: 'Survey Validation', href: '/survey' },
+          { label: 'KML & Route Verification', href: '/survey/kml' },
+          { label: 'Permit Management', href: '/survey/permits' },
         ],
       },
       {
-        label: 'Logistics',
-        href: '/logistics',
-        icon: Truck,
+        label: 'DRM Approval',
+        href: '/drm',
+        icon: FileCheck2,
         children: [
-          { label: 'Delivery Tracking', href: '/logistics' },
-          { label: 'Shipment History', href: '/logistics/history' },
+          { label: 'Design Review & Decision', href: '/drm' },
+          { label: 'Baseline Lock', href: '/drm/baselines' },
+        ],
+      },
+      {
+        label: 'Implementation',
+        href: '/implementation',
+        icon: HardHat,
+        children: [
+          { label: 'Construction Progress', href: '/implementation' },
+          { label: 'Evidence Vault', href: '/implementation/evidence' },
+          { label: 'Issue & Risk Control', href: '/implementation/issues' },
+        ],
+      },
+      {
+        label: 'Commissioning',
+        href: '/commissioning',
+        icon: ClipboardCheck,
+        children: [
+          { label: 'OTDR & Power Test Results', href: '/commissioning/tests' },
+          { label: 'Defect & Punch List', href: '/commissioning/defects' },
+          { label: 'BA Acceptance (BA UT)', href: '/commissioning/acceptance' },
+        ],
+      },
+      {
+        label: 'Closing & Handover',
+        href: '/closing',
+        icon: CheckSquare2,
+        children: [
+          { label: 'As-Built Documentation', href: '/closing/documentation' },
+          { label: 'Asset Inventory Record', href: '/closing/assets' },
+          { label: 'Final Profitability Report', href: '/closing/profitability' },
         ],
       },
     ]
   },
   {
-    group: 'Non-Transactional',
+    group: 'Governance & Admin',
     items: [
       {
-        label: 'Warehouse',
-        href: '/warehouse',
-        icon: Warehouse,
+        label: 'Financial Control',
+        href: '/financial',
+        icon: CircleDollarSign,
         children: [
-          { label: 'Warehouse List', href: '/warehouse' },
-          { label: 'Material Receive', href: '/warehouse/receive' },
-          { label: 'Material Issue', href: '/warehouse/issue' },
-          { label: 'Stock Monitoring', href: '/warehouse/stock' },
+          { label: 'Profitability Control', href: '/financial' },
+          { label: 'Change Request (CR)', href: '/financial/change-requests' },
         ],
       },
       {
-        label: 'Inventory',
-        href: '/inventory',
-        icon: Package,
-        children: [
-          { label: 'Material Catalog', href: '/inventory/catalog' },
-          { label: 'Stock Balance', href: '/inventory' },
-          { label: 'Movement History', href: '/inventory/movements' },
-        ],
+        label: 'Approvals Queue',
+        href: '/approvals',
+        icon: ShieldCheck,
       },
       {
-        label: 'Material Transfer',
-        href: '/transfer',
-        icon: ArrowLeftRight,
-      },
-      {
-        label: 'Reports',
-        href: '/reports',
-        icon: BarChart3,
+        label: 'Audit Trail',
+        href: '/audit-logs',
+        icon: History,
       },
       {
         label: 'Master Data',
-        href: '/master-data',
-        icon: Database,
+        href: '/settings',
+        icon: Settings,
         children: [
-          { label: 'Materials', href: '/master-data/materials' },
-          { label: 'Warehouses', href: '/master-data/warehouses' },
-          { label: 'Vendors', href: '/master-data/vendors' },
-          { label: 'Users', href: '/master-data/users' },
+          { label: 'Customers', href: '/settings/customers' },
+          { label: 'Materials & Items', href: '/settings/items' },
+          { label: 'Users & Roles', href: '/settings/users' },
         ],
       },
     ]
@@ -151,23 +176,14 @@ function NavCollapsible({ item, pathname, counts }: { item: any, pathname: strin
   }, [isItemActive]);
 
   const getBadgeForLabel = (label: string) => {
-    if (label === 'Approval Queue' && counts.rfcApprovals > 0) {
-      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-[10px]">{counts.rfcApprovals}</Badge>;
-    }
-    if (label === 'Active POs' && counts.poApprovals > 0) {
-      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-[10px]">{counts.poApprovals}</Badge>;
-    }
-    if (label === 'Material Receive' && counts.materialReceives > 0) {
-      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-[10px]">{counts.materialReceives}</Badge>;
+    if (label === 'Approvals Queue' && counts.approvals > 0) {
+      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-[10px]">{counts.approvals}</Badge>;
     }
     return null;
   };
 
-  // Check if group itself needs a badge
   const groupHasNotification = () => {
-    if (item.label === 'RFC Management' && counts.rfcApprovals > 0) return true;
-    if (item.label === 'Procurement' && counts.poApprovals > 0) return true;
-    if (item.label === 'Warehouse' && counts.materialReceives > 0) return true;
+    if (item.label === 'Approvals Queue' && counts.approvals > 0) return true;
     return false;
   };
 
@@ -213,100 +229,67 @@ function NavCollapsible({ item, pathname, counts }: { item: any, pathname: strin
 export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [counts, setCounts] = React.useState({ rfcApprovals: 0, poApprovals: 0, materialReceives: 0 });
-
-  const filteredNavigation = groupedNavigation.map(group => {
-    let filteredItems = group.items;
-    
-    // Role-based filtering
-    const userRole = user?.role?.toUpperCase() || '';
-    
-    filteredItems = filteredItems.filter(item => {
-      // Admin has access to everything
-      if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') return true;
-
-      switch (item.label) {
-        case 'Project Management':
-          return ['SITE_MANAGER', 'PROJECT_MANAGER'].includes(userRole);
-        case 'RFC Management':
-          return ['SITE_MANAGER', 'PROJECT_MANAGER', 'PROCUREMENT', 'OWNER'].includes(userRole);
-        case 'Procurement':
-          return ['PROCUREMENT', 'OWNER'].includes(userRole);
-        case 'Logistics':
-          return true; // All roles can view Logistics
-        case 'Warehouse':
-        case 'Inventory':
-        case 'Material Transfer':
-          return ['PROCUREMENT', 'OWNER', 'SITE_MANAGER', 'PROJECT_MANAGER'].includes(userRole);
-        case 'Master Data':
-          return ['PROCUREMENT'].includes(userRole);
-        default:
-          return true; // Dashboard, Reports etc
-      }
-    });
-
-    return {
-      ...group,
-      items: filteredItems
-    };
-  }).filter(group => group.items.length > 0);
+  const [counts, setCounts] = React.useState<any>({ approvals: 0 });
 
   React.useEffect(() => {
     const fetchCounts = async () => {
       try {
         const res = await fetch('/api/notifications/counts');
+        if (!res.ok) return;
         const json = await res.json();
         if (json.data) setCounts(json.data);
       } catch(e) {
-        console.error("Failed to fetch notification counts", e);
+        // Silently catch error while backend is missing
       }
     };
     fetchCounts();
-  }, [pathname]); // Refetch on route change
-
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
-  };
+  }, [pathname]);
 
   return (
     <Sidebar variant="sidebar" {...props}>
       <SidebarHeader className="border-b h-16 flex justify-center px-4">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="MAI Logo" className="w-10 h-10 object-contain" />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg border border-primary/20">
+            F
+          </div>
           <div className="flex flex-col">
-            <h1 className="text-lg font-bold tracking-tight text-primary">My Nexus</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium max-w-[140px]">MAI Network Inventory App</p>
+            <h1 className="text-lg font-bold tracking-tight text-primary">FOPLP</h1>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium max-w-[140px]">Fiber Optic Project Platform</p>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">
-        {filteredNavigation.map((group) => (
-          <SidebarGroup key={group.group} className="mb-2 last:mb-0">
-            {group.group !== 'Main' && (
-              <SidebarGroupLabel className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {group.group}
-              </SidebarGroupLabel>
-            )}
+        {groupedNavigation.map((group) => (
+          <SidebarGroup key={group.group}>
+            <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase px-3 mb-1">
+              {group.group}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  const hasChildren = item.children && item.children.length > 0;
-                  const isItemActive = isActive(item.href);
-                  
-                  if (hasChildren) {
-                    return <NavCollapsible key={item.label} item={item} pathname={pathname} counts={counts} />;
+                  if (item.children) {
+                    return (
+                      <NavCollapsible 
+                        key={item.label} 
+                        item={item} 
+                        pathname={pathname} 
+                        counts={counts}
+                      />
+                    );
                   }
+
+                  const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                  const Icon = item.icon;
 
                   return (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton 
-                        isActive={isItemActive} 
+                        isActive={isActive} 
                         tooltip={item.label}
                         render={<Link href={item.href} />}
                       >
-                        <item.icon />
+                        <Icon />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -318,22 +301,8 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border flex items-center justify-center">
-                <span className="text-xs font-semibold">
-                  {user?.name?.substring(0, 2).toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-medium truncate">{user?.name || 'User'}</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email || ''}</span>
-              </div>
-            </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter className="border-t p-4 text-xs text-muted-foreground text-center">
+        FOPLP Enterprise v1.0
       </SidebarFooter>
     </Sidebar>
   );

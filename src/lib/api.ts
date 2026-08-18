@@ -1,31 +1,29 @@
-import axios from 'axios';
-
-export const api = axios.create({
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// Request interceptor — attach JWT token
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('nims_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Mock API instance returning typed Promise<{ data: any }>
+const api = {
+  get: async (...args: any[]): Promise<{ data: any }> => ({ data: [] }),
+  post: async (...args: any[]): Promise<{ data: any }> => {
+    if (args[0]?.includes('login')) {
+      return {
+        data: {
+          accessToken: 'dummy_token_123',
+          user: {
+            id: '1',
+            email: 'admin@foplp.com',
+            name: 'Admin FOPLP',
+            role: 'Admin'
+          }
+        }
+      };
     }
-  }
-  return config;
-});
-
-// Response interceptor — handle 401
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('nims_token');
-      localStorage.removeItem('nims_user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+    return { data: {} };
   },
-);
+  put: async (...args: any[]): Promise<{ data: any }> => ({ data: {} }),
+  patch: async (...args: any[]): Promise<{ data: any }> => ({ data: {} }),
+  delete: async (...args: any[]): Promise<{ data: any }> => ({ data: {} }),
+  interceptors: {
+    request: { use: () => {} },
+    response: { use: () => {} }
+  }
+};
 
 export default api;

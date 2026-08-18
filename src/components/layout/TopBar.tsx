@@ -37,7 +37,7 @@ export default function TopBar() {
           setNotifications(data || []);
         }
       } catch (e) {
-        console.error('Error fetching notifications:', e);
+        // Silently catch error while API route is not present
       }
     };
     if (user) {

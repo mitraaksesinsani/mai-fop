@@ -158,6 +158,7 @@
     @apply antialiased bg-background text-foreground;
     font-family: var(--font-sans);
   }
+}
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
@@ -181,7 +182,6 @@
     @apply font-sans;
     font-size: 90%;
   }
-}
 
 /* ============================================
    Animation Keyframes
@@ -288,3 +288,32 @@ input:-webkit-autofill {
 input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 30px #f1f5f9 inset !important;
 }
+
+/* ============================================
+   Nexus Design System Custom Export Styles
+   ============================================ */
+.my-nexus,
+.my-nexus * {
+  box-sizing: border-box;
+}
+.my-nexus {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 100vh;
+  position: relative;
+}
+.my-nexus .body {
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 100%;
+  position: relative;
+}
+

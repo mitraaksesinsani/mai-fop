@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { useState, useEffect } from 'react';
 import L from 'leaflet';
 import { Truck, MapPin, User, QrCode, RefreshCw } from 'lucide-react';
-import axios from 'axios';
+import api from '@/lib/api';
 
 let truckIcon: any = null;
 let destIcon: any = null;
@@ -56,7 +56,7 @@ export default function MapComponent({ selectedDO }: { selectedDO: any }) {
   const fetchLocation = async (manual = false) => {
     if (manual) setIsRefreshing(true);
     try {
-      const res = await axios.get(`/api/logistics/${selectedDO.id}/tracking`);
+      const res = await api.get(`/api/logistics/${selectedDO.id}/tracking`);
       if (res.data && res.data.latitude && res.data.longitude) {
         setCurrentPos([parseFloat(res.data.latitude), parseFloat(res.data.longitude)]);
       }
