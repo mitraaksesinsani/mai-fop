@@ -28,13 +28,24 @@ import {
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { DataTablePagination } from '@/components/shared/DataTablePagination';
 
+import { useProject } from '@/context/ProjectContext';
+
 export default function RequirementsPage() {
- const [requirements, setRequirements] = useState<any[]>([]);
- const [projects, setProjects] = useState<any[]>([]);
- const [materials, setMaterials] = useState<any[]>([]);
- 
- const [loading, setLoading] = useState(true);
- const [selectedProject, setSelectedProject] = useState<string>('');
+  const { projects: globalProjects, selectedProjectId } = useProject();
+  const [requirements, setRequirements] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>(globalProjects);
+  const [materials, setMaterials] = useState<any[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<string>(
+    selectedProjectId !== 'all' ? selectedProjectId : (globalProjects[0]?.id || '')
+  );
+
+  useEffect(() => {
+    if (selectedProjectId !== 'all' && selectedProjectId !== selectedProject) {
+      setSelectedProject(selectedProjectId);
+    }
+  }, [selectedProjectId]);
  const [projectSearch, setProjectSearch] = useState('');
  const [projectPopoverOpen, setProjectPopoverOpen] = useState(false);
  const [materialSearch, setMaterialSearch] = useState('');

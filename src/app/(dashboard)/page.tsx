@@ -28,6 +28,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import Link from 'next/link';
 
+import { useProject } from '@/context/ProjectContext';
+
 // Interface for widget visibility configuration
 interface DashboardWidgetConfig {
   pipeline: boolean;
@@ -56,6 +58,7 @@ const DEFAULT_WIDGET_CONFIG: DashboardWidgetConfig = {
 };
 
 export default function DashboardPage() {
+  const { projects, selectedProjectId, selectedProject } = useProject();
   const [widgetConfig, setWidgetConfig] = useState<DashboardWidgetConfig>(DEFAULT_WIDGET_CONFIG);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
 
@@ -92,14 +95,24 @@ export default function DashboardPage() {
     saveWidgetConfig(DEFAULT_WIDGET_CONFIG);
   };
 
+  // Calculate real metrics from Context
+  const totalProjects = projects.length;
+  
+  // Calculate total contract value (proxy: sum of all BOQ items price * qty)
+  const totalValue = projects.reduce((acc, p) => {
+    const pCost = p.boqItems?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0;
+    return acc + pCost;
+  }, 0);
+  const formattedTotalValue = totalValue > 0 ? `Rp ${(totalValue / 1000000000).toFixed(1)} B` : 'Rp 0 B';
+
   // Metric Cards definition
   const allMetrics = [
-    { key: 'kpiActiveProjects' as const, title: 'Active Projects', value: '14 Projects', icon: FolderKanban, change: '+2 this month', positive: true },
-    { key: 'kpiRouteLength' as const, title: 'Total Route Length', value: '148.5 KM', icon: MapPin, change: '12 Segments', positive: true },
-    { key: 'kpiContractValue' as const, title: 'Total Contract Value', value: 'Rp 18.4 B', icon: DollarSign, change: '14 Active Contracts', positive: true },
-    { key: 'kpiAvgMargin' as const, title: 'Avg Project Margin', value: '26.8%', icon: TrendingUp, change: '-3.2% vs target', positive: false },
-    { key: 'kpiPendingDrm' as const, title: 'Pending DRM Approval', value: '3 Projects', icon: FileCheck2, change: 'Action Required', positive: false },
-    { key: 'kpiActiveIssues' as const, title: 'Active Issues', value: '5 Critical', icon: ShieldAlert, change: 'Permit & Civil', positive: false },
+    { key: 'kpiActiveProjects' as const, title: 'Active Projects', value: `${totalProjects} Projects`, icon: FolderKanban, change: 'Real-time data', positive: true },
+    { key: 'kpiRouteLength' as const, title: 'Total Route Length', value: '0 KM', icon: MapPin, change: 'No geospatial data', positive: true },
+    { key: 'kpiContractValue' as const, title: 'Total Est. Value', value: formattedTotalValue, icon: DollarSign, change: 'Based on BOQ', positive: true },
+    { key: 'kpiAvgMargin' as const, title: 'Avg Project Margin', value: 'N/A', icon: TrendingUp, change: 'No cost data', positive: false },
+    { key: 'kpiPendingDrm' as const, title: 'Pending DRM Approval', value: `${projects.filter(p => p.status === 'DRM').length} Projects`, icon: FileCheck2, change: 'Action Required', positive: false },
+    { key: 'kpiActiveIssues' as const, title: 'Active Issues', value: '0 Critical', icon: ShieldAlert, change: 'All clear', positive: true },
   ];
 
   const visibleMetrics = allMetrics.filter(m => widgetConfig[m.key]);
@@ -123,24 +136,41 @@ export default function DashboardPage() {
     }
   };
 
-  // Lifecycle Pipeline Stages
+  // Lifecycle Pipeline Stages based on actual projects
+  const getCountByStatus = (statusNames: string[]) => 
+    projects.filter(p => p.status && statusNames.includes(p.status)).length;
+
   const lifecycleStages = [
-    { name: 'Initiation', count: 2 },
-    { name: 'Planning', count: 3 },
-    { name: 'Survey', count: 2 },
-    { name: 'DRM', count: 3 },
-    { name: 'Implementation', count: 2 },
-    { name: 'Commissioning', count: 1 },
-    { name: 'Closing', count: 1 },
+    { name: 'Initiation', count: getCountByStatus(['Initiation', 'Draft']) },
+    { name: 'Planning', count: getCountByStatus(['Planning']) },
+    { name: 'Survey', count: getCountByStatus(['Survey']) },
+    { name: 'DRM', count: getCountByStatus(['DRM']) },
+    { name: 'Implementation', count: getCountByStatus(['Implementation']) },
+    { name: 'Commissioning', count: getCountByStatus(['Commissioning']) },
+    { name: 'Closing', count: getCountByStatus(['Closing', 'Handover']) },
   ];
 
-  // Recent Active Projects Table
-  const recentProjects = [
-    { id: 'PRJ-2026-001', name: 'Backbone Fiber Jakarta - Bandung', customer: 'Telkomsel', type: 'Backbone', distance: '45.0 KM', cost: 'Rp 5.2 B', margin: '31.2%', status: 'Implementation' },
-    { id: 'PRJ-2026-002', name: 'Metro Ring Surabaya East', customer: 'Indosat Ooredoo', type: 'Metro', distance: '28.5 KM', cost: 'Rp 3.1 B', margin: '24.5%', status: 'Survey' },
-    { id: 'PRJ-2026-003', name: 'FTTx Access Cluster Medan', customer: 'XL Axiata', type: 'FTTx', distance: '18.2 KM', cost: 'Rp 1.8 B', margin: '28.0%', status: 'DRM' },
-    { id: 'PRJ-2026-004', name: 'Enterprise Link Bank Mandiri HQ', customer: 'Bank Mandiri', type: 'Enterprise', distance: '6.4 KM', cost: 'Rp 950 M', margin: '38.4%', status: 'Commissioning' },
-  ];
+  // Real Active Projects Table from Context
+  const allRecentProjects = projects.map(p => {
+    // Calculate total BOQ cost as a proxy for cost if available, otherwise just N/A for now
+    const totalCost = p.boqItems?.reduce((acc, item) => acc + (item.quantity * item.price), 0) || 0;
+    const formattedCost = totalCost > 0 ? `Rp ${(totalCost / 1000000).toFixed(1)} M` : 'N/A';
+    
+    return {
+      id: p.id,
+      name: p.name || 'Untitled Project',
+      customer: p.customer || 'Unknown',
+      type: p.type || 'N/A',
+      distance: 'N/A', // Data not available in current schema
+      cost: formattedCost,
+      margin: 'N/A', // Data not available in current schema
+      status: p.status || 'Draft'
+    };
+  });
+
+  const recentProjects = selectedProjectId === 'all' || !selectedProjectId
+    ? allRecentProjects
+    : allRecentProjects.filter(p => p.id === selectedProjectId);
 
   const isBothSummaryVisible = widgetConfig.financialControl && widgetConfig.engineeringSummary;
   const summaryGridClass = isBothSummaryVisible ? 'grid-cols-1 lg:grid-cols-2 gap-6' : 'grid-cols-1 gap-6';

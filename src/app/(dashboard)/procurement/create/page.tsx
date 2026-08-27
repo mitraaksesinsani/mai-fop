@@ -19,16 +19,13 @@ export default function CreatePOPage() {
   const editId = searchParams.get('editId');
   
   const [loading, setLoading] = useState(false);
-  const [isFetchingRfc, setIsFetchingRfc] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
-  const [approvedRfcs, setApprovedRfcs] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     poNumber: '',
     vendor: '',
-    rfcId: '',
     expectedDate: '',
     notes: '',
     transporter: '',
@@ -40,9 +37,6 @@ export default function CreatePOPage() {
 
   const [vendorSearch, setVendorSearch] = useState('');
   const [vendorPopoverOpen, setVendorPopoverOpen] = useState(false);
-  
-  const [rfcSearch, setRfcSearch] = useState('');
-  const [rfcPopoverOpen, setRfcPopoverOpen] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -50,11 +44,7 @@ export default function CreatePOPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [rfcRes, vendorRes] = await Promise.all([
-        api.get('/api/rfc?status=APPROVED'),
-        api.get('/api/vendors')
-      ]);
-      setApprovedRfcs(rfcRes.data.data || []);
+      const vendorRes = await api.get('/api/vendors');
       setVendors(vendorRes.data.data || []);
       
       if (editId) {
@@ -63,7 +53,6 @@ export default function CreatePOPage() {
         setFormData({
           poNumber: po.poNumber || '',
           vendor: po.vendor || '',
-          rfcId: po.rfcId || '',
           expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().split('T')[0] : '',
           notes: po.notes || '',
           transporter: po.transporter || '',
@@ -78,30 +67,6 @@ export default function CreatePOPage() {
       toast.error('Failed to load initial data');
     } finally {
       setLoadingInitial(false);
-    }
-  };
-
-  const handleRfcChange = async (rfcId: string) => {
-    setFormData({ ...formData, rfcId });
-    if (rfcId === 'none' || !rfcId) {
-      setFormData(prev => ({ ...prev, rfcId: '', items: [] }));
-      return;
-    }
-    
-    setIsFetchingRfc(true);
-    try {
-      const { data } = await api.get(`/api/rfc/${rfcId}`);
-      if (data?.data?.items) {
-        const mappedItems = data.data.items.map((item: any) => ({
-          ...item,
-          quantity: item.requestQty
-        }));
-        setFormData(prev => ({ ...prev, rfcId, items: mappedItems }));
-      }
-    } catch (error) {
-      console.error('Failed to fetch RFC details', error);
-    } finally {
-      setIsFetchingRfc(false);
     }
   };
 
@@ -168,68 +133,6 @@ export default function CreatePOPage() {
                   onChange={(e) => setFormData({...formData, poNumber: e.target.value})}
                   required 
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="rfcRef">Reference RFC Number</Label>
-                <Popover open={rfcPopoverOpen} onOpenChange={setRfcPopoverOpen}>
-                  <PopoverTrigger
-                      className="flex min-h-10 h-auto w-full max-w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <span className="text-left flex-1 pr-2 break-words whitespace-normal">
-                      {formData.rfcId
-                        ? approvedRfcs.find((r) => r.id === formData.rfcId)?.rfcNumber
-                        : "Select an approved RFC (Optional)"}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-(--anchor-width) min-w-[300px] p-0" align="start">
-                    <div className="flex items-center border-b px-3">
-                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                      <Input
-                        placeholder="Search RFC number..."
-                        className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-                        value={rfcSearch}
-                        onChange={(e) => setRfcSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto p-1">
-                      <div
-                        className={`relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${!formData.rfcId ? 'bg-accent text-accent-foreground' : ''}`}
-                        onClick={() => {
-                          handleRfcChange('');
-                          setRfcPopoverOpen(false);
-                        }}
-                      >
-                        {!formData.rfcId && (
-                          <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                            <Check className="h-4 w-4" />
-                          </span>
-                        )}
-                        None (Manual PO)
-                      </div>
-                      {approvedRfcs.filter(r => 
-                          r.rfcNumber.toLowerCase().includes(rfcSearch.toLowerCase())
-                        ).map(r => (
-                          <div
-                            key={r.id}
-                            className={`relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${formData.rfcId === r.id ? 'bg-accent text-accent-foreground' : ''}`}
-                            onClick={() => {
-                              handleRfcChange(r.id);
-                              setRfcPopoverOpen(false);
-                            }}
-                          >
-                            {formData.rfcId === r.id && (
-                              <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                                <Check className="h-4 w-4" />
-                              </span>
-                            )}
-                            {r.rfcNumber}
-                          </div>
-                        ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
 
               <div className="space-y-2">

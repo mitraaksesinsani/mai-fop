@@ -1,19 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FolderKanban,
   Plus,
   Search,
-  Filter,
-  Calendar,
-  User,
-  MapPin,
-  Building,
-  FileText,
-  CheckCircle2,
-  ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Eye,
+  Edit,
+  FolderX,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,218 +19,449 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
-import Link from 'next/link';
+import { useProject, Project } from '@/context/ProjectContext';
+import { toast } from 'sonner';
 
 export default function ProjectsPage() {
+  const { projects, addProject, updateProject, deleteProject, selectedProjectId, setSelectedProjectId } = useProject();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
 
-  // Mock Projects strictly following PRD-MAIN Entity 1 (projects) & Customer
-  const projects = [
-    {
-      id: 'PRJ-2026-001',
-      code: 'FOPLP-BB-001',
-      name: 'Backbone Fiber Jakarta - Bandung',
+  // Form states
+  const [newProjectData, setNewProjectData] = useState<Partial<Project>>({
+    id: '',
+    name: '',
+    customer: 'PT Telkomsel Tbk',
+    type: 'Backbone Fiber',
+    location: '',
+    contractNo: '',
+    startDate: new Date().toISOString().split('T')[0],
+    targetDate: '',
+    manager: '',
+  });
+  const [editProjectData, setEditProjectData] = useState<Partial<Project>>({});
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectData.name) {
+      toast.error('Nama proyek wajib diisi');
+      return;
+    }
+
+    const autoId = newProjectData.id?.trim()
+      ? newProjectData.id.trim()
+      : `PRJ-2026-00${projects.length + 1}`;
+
+    const createdProj: Project = {
+      id: crypto.randomUUID(),
+      name: newProjectData.name,
+      customer: newProjectData.customer || 'PT Telkomsel Tbk',
+      type: newProjectData.type || 'Backbone Fiber',
+      location: newProjectData.location || 'Indonesia',
+      contractNo: newProjectData.contractNo ? `${autoId} | ${newProjectData.contractNo}` : autoId,
+      startDate: newProjectData.startDate,
+      targetDate: newProjectData.targetDate || '2026-12-31',
+      manager: newProjectData.manager || 'Project Manager',
+      status: 'Planning',
+    };
+
+    addProject(createdProj);
+    toast.success(`Project ${createdProj.id} (${createdProj.name}) berhasil dibuat!`);
+    setIsCreateModalOpen(false);
+
+    // Reset Form
+    setNewProjectData({
+      id: '',
+      name: '',
       customer: 'PT Telkomsel Tbk',
       type: 'Backbone Fiber',
-      location: 'DKI Jakarta & Jawa Barat',
-      contractNo: 'CTR/TEL/2026/089',
-      startDate: '2026-01-15',
-      targetDate: '2026-06-30',
-      manager: 'Budi Santoso',
-      status: 'Implementation',
-    },
-    {
-      id: 'PRJ-2026-002',
-      code: 'FOPLP-MT-002',
-      name: 'Metro Ring Surabaya East',
-      customer: 'PT Indosat Tbk',
-      type: 'Metro Fiber',
-      location: 'Surabaya, Jawa Timur',
-      contractNo: 'CTR/ISAT/2026/042',
-      startDate: '2026-02-01',
-      targetDate: '2026-05-15',
-      manager: 'Siti Rahma',
-      status: 'Survey',
-    },
-    {
-      id: 'PRJ-2026-003',
-      code: 'FOPLP-FTTX-003',
-      name: 'FTTx Access Cluster Medan Center',
-      customer: 'PT XL Axiata Tbk',
-      type: 'FTTx',
-      location: 'Medan, Sumatera Utara',
-      contractNo: 'CTR/XL/2026/104',
-      startDate: '2026-03-10',
-      targetDate: '2026-07-20',
-      manager: 'Ahmad Hidayat',
-      status: 'DRM',
-    },
-    {
-      id: 'PRJ-2026-004',
-      code: 'FOPLP-ENT-004',
-      name: 'Enterprise Link Bank Mandiri HQ',
-      customer: 'Bank Mandiri',
-      type: 'Enterprise Fiber',
-      location: 'Jakarta Selatan',
-      contractNo: 'CTR/BM/2026/012',
-      startDate: '2026-02-15',
-      targetDate: '2026-04-10',
-      manager: 'Dewi Lestari',
-      status: 'Commissioning',
-    },
-  ];
+      location: '',
+      contractNo: '',
+      startDate: new Date().toISOString().split('T')[0],
+      targetDate: '',
+      manager: '',
+    });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeProject) {
+      updateProject(activeProject.id, editProjectData);
+      toast.success(`Project ${activeProject.id} berhasil diupdate!`);
+      setIsEditModalOpen(false);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus Project ID ${id}?`)) {
+      deleteProject(id);
+      toast.success(`Project ${id} berhasil dihapus.`);
+    }
+  };
+
+  const openDetail = (project: Project) => {
+    router.push(`/projects/${project.id}`);
+  };
+
+  const openEdit = (project: Project) => {
+    setActiveProject(project);
+    setEditProjectData(project);
+    setIsEditModalOpen(true);
+  };
+
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.customer.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Project Master Control</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Project Master Lists</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Create, manage and control Fiber Optic project lifecycles
+            Buat, kelola, dan pantau proyek Fiber Optic Anda
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/projects/classification">
-            <Button variant="outline" className="gap-2 text-xs">
-              View Classifications
-            </Button>
-          </Link>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger render={
-              <Button className="gap-2 text-xs shadow-none">
-                <Plus className="w-4 h-4" />
-                Create New Project
-              </Button>
-            } />
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Fiber Optic Project</DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 py-4">
-                <div className="space-y-2">
-                  <Label>Project Code</Label>
-                  <Input placeholder="e.g. FOPLP-BB-005" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Project Name</Label>
-                  <Input placeholder="e.g. Backbone Fiber Semarang - Solo" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Customer / Client</Label>
-                  <Select>
-                    <SelectTrigger><SelectValue placeholder="Select Client" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="telkomsel">PT Telkomsel Tbk</SelectItem>
-                      <SelectItem value="indosat">PT Indosat Tbk</SelectItem>
-                      <SelectItem value="xl">PT XL Axiata Tbk</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Project Classification</Label>
-                  <Select>
-                    <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="backbone">Backbone Fiber</SelectItem>
-                      <SelectItem value="metro">Metro Fiber</SelectItem>
-                      <SelectItem value="fttx">FTTx Access</SelectItem>
-                      <SelectItem value="enterprise">Enterprise Fiber</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Work Location</Label>
-                  <Input placeholder="e.g. Jawa Tengah" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contract Number</Label>
-                  <Input placeholder="e.g. CTR/2026/099" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Target Completion Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Project Manager (PIC)</Label>
-                  <Input placeholder="e.g. Budi Santoso" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                <Button onClick={() => setIsModalOpen(false)}>Save & Start Lifecycle</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
       {/* Projects Table & Filters */}
-      <Card className="border-0 shadow-none ring-0">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-semibold">Active Project Master List</CardTitle>
-            <CardDescription className="text-xs">Single source of truth for all project lifecycles</CardDescription>
-          </div>
-          <div className="flex items-center gap-2 max-w-sm w-full">
-            <div className="relative w-full">
+      <Card className="border-0 shadow-none ring-0 bg-transparent">
+        <CardHeader className="px-0 pb-3 flex flex-row items-center justify-between">
+          <div className="flex-1"></div>
+          <div className="flex items-center gap-2 w-full max-w-xl justify-end">
+            <div className="relative w-full max-w-sm">
               <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Search project code or name..." 
+                placeholder="Cari Project ID atau Nama Proyek..." 
                 className="pl-8 text-xs"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
+            
+            {/* Dialog Buat Proyek */}
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger render={<Button className="gap-2 text-xs shadow-none cursor-pointer whitespace-nowrap" />}>
+                <Plus className="w-4 h-4" />
+                Tambah Proyek
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>Tambah Proyek</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateProject} className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-4">
+                    <div className="space-y-2 col-span-2 md:col-span-3">
+                      <Label htmlFor="projId">Project ID <span className="text-xs text-muted-foreground">(Opsional / Custom)</span></Label>
+                      <Input
+                        id="projId"
+                        placeholder={`misal: PRJ-2026-00${projects.length + 1}`}
+                        value={newProjectData.id}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, id: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2 md:col-span-3">
+                      <Label htmlFor="projName">Nama Proyek <span className="text-destructive">*</span></Label>
+                      <Input
+                        id="projName"
+                        placeholder="e.g. Backbone Fiber Semarang - Solo"
+                        value={newProjectData.name}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="projCustomer">Customer / Client</Label>
+                      <Select
+                        value={newProjectData.customer}
+                        onValueChange={(val) => setNewProjectData({ ...newProjectData, customer: val })}
+                      >
+                        <SelectTrigger id="projCustomer"><SelectValue placeholder="Pilih Client" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PT Telkomsel Tbk">PT Telkomsel Tbk</SelectItem>
+                          <SelectItem value="PT Indosat Tbk">PT Indosat Tbk</SelectItem>
+                          <SelectItem value="PT XL Axiata Tbk">PT XL Axiata Tbk</SelectItem>
+                          <SelectItem value="Bank Mandiri">Bank Mandiri</SelectItem>
+                          <SelectItem value="Lainnya">Lainnya</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="projType">Tipe Proyek</Label>
+                      <Select
+                        value={newProjectData.type}
+                        onValueChange={(val) => setNewProjectData({ ...newProjectData, type: val })}
+                      >
+                        <SelectTrigger id="projType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Backbone Fiber">Backbone Fiber</SelectItem>
+                          <SelectItem value="Metro Fiber">Metro Fiber</SelectItem>
+                          <SelectItem value="FTTx">FTTx Access</SelectItem>
+                          <SelectItem value="Enterprise Fiber">Enterprise Fiber</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="projLocation">Lokasi Pekerjaan</Label>
+                      <Input
+                        id="projLocation"
+                        placeholder="e.g. Jawa Tengah"
+                        value={newProjectData.location}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, location: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="projContract">Nomor Kontrak</Label>
+                      <Input
+                        id="projContract"
+                        placeholder="e.g. CTR/2026/099"
+                        value={newProjectData.contractNo}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, contractNo: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="projStartDate">Start Date</Label>
+                      <Input
+                        id="projStartDate"
+                        type="date"
+                        value={newProjectData.startDate}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, startDate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="projTargetDate">Target Completion Date</Label>
+                      <Input
+                        id="projTargetDate"
+                        type="date"
+                        value={newProjectData.targetDate}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, targetDate: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 col-span-2 md:col-span-3">
+                      <Label htmlFor="projManager">Project Manager (PIC)</Label>
+                      <Input
+                        id="projManager"
+                        placeholder="e.g. Budi Santoso"
+                        value={newProjectData.manager}
+                        onChange={(e) => setNewProjectData({ ...newProjectData, manager: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Batal</Button>
+                    <Button type="submit">Simpan Proyek</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project Code & Name</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Contract No</TableHead>
-                <TableHead>Project Manager</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead className="text-right">Lifecycle Status</TableHead>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent border-none">
+                <TableHead className="font-semibold text-foreground py-4">Project Name</TableHead>
+                <TableHead className="font-semibold text-foreground">Manager</TableHead>
+                <TableHead className="font-semibold text-foreground">Schedule</TableHead>
+                <TableHead className="font-semibold text-foreground">Details</TableHead>
+                <TableHead className="font-semibold text-foreground">Status</TableHead>
+                <TableHead className="font-semibold text-foreground text-right pr-4">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((p) => (
-                <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <div>{p.name}</div>
-                    <div className="text-[11px] text-muted-foreground font-mono">{p.code} ({p.id})</div>
-                  </TableCell>
-                  <TableCell className="text-xs">{p.customer}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px] font-semibold">{p.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">{p.location}</TableCell>
-                  <TableCell className="text-xs font-mono">{p.contractNo}</TableCell>
-                  <TableCell className="text-xs">{p.manager}</TableCell>
-                  <TableCell className="text-[11px] text-muted-foreground">
-                    {p.startDate} &rarr; {p.targetDate}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <StatusBadge status={p.status} />
+              {filteredProjects.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="h-[400px] text-center">
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                        <FolderX className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium text-foreground mb-2">Belum ada proyek</h3>
+                      <p className="text-muted-foreground text-sm max-w-sm mb-6">Silakan tambah proyek baru atau sesuaikan kata kunci pencarian Anda.</p>
+                      <Button onClick={() => setIsCreateModalOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Tambah Proyek Baru
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredProjects.map((p) => {
+                  return (
+                  <TableRow 
+                    key={p.id} 
+                    className="hover:bg-muted/30 transition-colors"
+                  >
+                    <TableCell className="py-4">
+                      <div>
+                        <div className="font-medium text-foreground">{p.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{p.id}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-foreground">{p.manager || 'No Manager'}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{p.customer}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-foreground">{p.startDate}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Target: {p.targetDate || '-'}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-foreground">{p.type || 'Backbone'}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{p.location || '-'}</div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={p.status || 'Active'} />
+                    </TableCell>
+                    <TableCell className="text-right pr-4">
+                      <div className="flex items-center justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" />}>
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => openDetail(p)} className="cursor-pointer">
+                              <Eye className="w-4 h-4 mr-2" />
+                              Lihat Detil
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(p)} className="cursor-pointer">
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit Detil
+                            </DropdownMenuItem>
+                            <DropdownMenuItem variant="destructive" onClick={() => handleDelete(p.id)} className="cursor-pointer">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Hapus Proyek
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      
+
+      {/* Modal Edit */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Proyek</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 py-2">
+              <div className="space-y-2 col-span-2">
+                <Label>Project ID</Label>
+                <Input disabled value={editProjectData.id || ''} className="bg-muted" />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="editProjName">Nama Proyek <span className="text-destructive">*</span></Label>
+                <Input
+                  id="editProjName"
+                  value={editProjectData.name || ''}
+                  onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editCustomer">Customer / Client</Label>
+                <Select
+                  value={editProjectData.customer || ''}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, customer: val })}
+                >
+                  <SelectTrigger id="editCustomer"><SelectValue placeholder="Pilih Client" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PT Telkomsel Tbk">PT Telkomsel Tbk</SelectItem>
+                    <SelectItem value="PT Indosat Tbk">PT Indosat Tbk</SelectItem>
+                    <SelectItem value="PT XL Axiata Tbk">PT XL Axiata Tbk</SelectItem>
+                    <SelectItem value="Bank Mandiri">Bank Mandiri</SelectItem>
+                    <SelectItem value="Lainnya">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editType">Tipe Proyek</Label>
+                <Select
+                  value={editProjectData.type || ''}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, type: val })}
+                >
+                  <SelectTrigger id="editType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Backbone Fiber">Backbone Fiber</SelectItem>
+                    <SelectItem value="Metro Fiber">Metro Fiber</SelectItem>
+                    <SelectItem value="FTTx">FTTx Access</SelectItem>
+                    <SelectItem value="Enterprise Fiber">Enterprise Fiber</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editLocation">Lokasi Pekerjaan</Label>
+                <Input
+                  id="editLocation"
+                  value={editProjectData.location || ''}
+                  onChange={(e) => setEditProjectData({ ...editProjectData, location: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editContract">Nomor Kontrak</Label>
+                <Input
+                  id="editContract"
+                  value={editProjectData.contractNo || ''}
+                  onChange={(e) => setEditProjectData({ ...editProjectData, contractNo: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editManager">Project Manager (PIC)</Label>
+                <Input
+                  id="editManager"
+                  value={editProjectData.manager || ''}
+                  onChange={(e) => setEditProjectData({ ...editProjectData, manager: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editStatus">Status</Label>
+                <Select
+                  value={editProjectData.status || ''}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, status: val })}
+                >
+                  <SelectTrigger id="editStatus"><SelectValue placeholder="Pilih Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Planning">Planning</SelectItem>
+                    <SelectItem value="Survey">Survey</SelectItem>
+                    <SelectItem value="Implementation">Implementation</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Batal</Button>
+              <Button type="submit">Simpan Perubahan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

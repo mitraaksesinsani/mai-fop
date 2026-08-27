@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { Zap, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,93 +34,115 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 via-red-700 to-red-900 p-4 relative overflow-hidden">
-      {/* Dot Pattern Overlay */}
-      <div 
-        className="absolute inset-0 z-0 opacity-40 pointer-events-none" 
-        style={{ 
-          backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px)', 
-          backgroundSize: '24px 24px' 
-        }} 
-      />
+    <div className="min-h-screen w-full flex bg-white font-sans overflow-hidden">
+      
+      {/* LEFT SIDE - Visuals (Image) */}
+      <div className="hidden lg:block w-[60%] relative">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url("/login-bg.jpg")' }}
+        />
+      </div>
 
-      {/* Main Card Container */}
-      <div className="relative z-10 w-full max-w-[420px] p-2 rounded-[28px] bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_0_40px_rgba(220,38,38,0.5)] animate-fade-in">
-        <div className="bg-white rounded-[20px] p-8 shadow-xl">
+      {/* RIGHT SIDE - Form */}
+      <div className="w-full lg:w-[40%] flex flex-col justify-center p-8 lg:p-12 xl:p-16 relative overflow-y-auto">
+        <div className="w-full max-w-[400px] mx-auto flex flex-col">
           
-          <div className="flex flex-col items-center justify-center mb-8">
-            <div className="relative w-24 h-24 mb-2 flex items-center justify-center">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
-            </div>
-            <h2 className="text-xl font-bold text-foreground mb-1 tracking-tight">My Nexus</h2>
-            <p className="text-sm text-muted-foreground">Login or sign in below</p>
+          {/* Logo */}
+          <div className="mb-10 flex items-center justify-start">
+            <img src="/logo.png" alt="MAI Logo" className="w-24 h-24 object-contain" />
           </div>
 
+          {/* Headings */}
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
+            Sign in to MAI
+          </h1>
+          <p className="text-[15px] text-slate-500 mb-8">
+            Manage your fiber optic infrastructure efficiently.
+          </p>
+
+
+
           {error && (
-            <div className="flex items-center gap-2 p-3 mb-6 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            <div className="flex items-center gap-2 p-3 mb-6 w-full rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-semibold text-foreground ml-1">Email</Label>
+          <form onSubmit={handleSubmit} className="w-full space-y-6">
+            
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label className="text-[14px] font-semibold text-slate-900">Email address*</Label>
               <Input
-                id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11 rounded-lg bg-white border-slate-200 focus:bg-slate-100 transition-colors"
+                className="h-11 rounded-lg bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-slate-900 focus-visible:border-slate-900 transition-all text-[15px]"
               />
             </div>
-            
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between ml-1">
-                <Label htmlFor="password" className="text-xs font-semibold text-foreground">Password</Label>
-                <button type="button" className="text-[11px] text-muted-foreground hover:text-red-600 transition-colors focus:outline-none">
-                  Forgot password?
-                </button>
-              </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <Label className="text-[14px] font-semibold text-slate-900">Password*</Label>
               <div className="relative">
                 <Input
-                  id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 rounded-lg bg-white border-slate-200 pr-10 focus:bg-slate-100 transition-colors"
+                  className="h-11 rounded-lg bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-slate-900 focus-visible:border-slate-900 transition-all text-[15px] pr-10 font-mono tracking-widest pt-1"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-11 w-11 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-700 transition-colors outline-none"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRememberMe(!rememberMe)}
+                  className={`w-4 h-4 rounded-sm border ${rememberMe ? 'bg-slate-900 border-slate-900' : 'border-slate-300 bg-white'} flex items-center justify-center transition-colors`}
+                >
+                  {rememberMe && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+                <span className="text-[14px] text-slate-500 font-medium cursor-pointer select-none" onClick={() => setRememberMe(!rememberMe)}>
+                  Remember Me
+                </span>
+              </div>
+              <a href="#" className="text-[14px] text-slate-900 font-medium hover:underline">
+                Forgot Password?
+              </a>
+            </div>
+
+            {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full h-11 rounded-lg bg-[#111] hover:bg-black text-white font-medium transition-all shadow-md mt-2" 
+              className="w-full h-12 rounded-lg bg-[#111] hover:bg-black text-white font-medium text-[15px] transition-all shadow-sm mt-2"
               disabled={isLoading}
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
             </Button>
           </form>
 
-          <div className="flex items-center justify-between mt-8 text-[11px] text-zinc-400 font-medium pt-6 border-t border-zinc-100">
-            <a href="#" className="hover:text-zinc-800 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-zinc-800 transition-colors">Privacy Policy</a>
-          </div>
         </div>
       </div>
+
     </div>
   );
 }

@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delivery_order_items {
+  id                String           @id @db.Uuid
+  delivery_order_id String?          @db.Uuid
+  material_id       String?          @db.Uuid
+  quantity          Int?
+  notes             String?
+  delivery_orders   delivery_orders? @relation(fields: [delivery_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delivery_orders {
+  id                     String                   @id @db.Uuid
+  do_number              String                   @unique @db.VarChar(100)
+  project_id             String?                  @db.Uuid
+  rfc_id                 String?                  @db.Uuid
+  origin                 String                   @db.VarChar(255)
+  destination            String                   @db.VarChar(255)
+  shipping_date          DateTime?                @db.Timestamp(6)
+  notes                  String?
+  status                 String?                  @db.VarChar(50)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  po_id                  String?                  @db.Uuid
+  origin_lat             Decimal?                 @db.Decimal(10, 8)
+  origin_lng             Decimal?                 @db.Decimal(11, 8)
+  evidence               String?
+  delivery_order_items   delivery_order_items[]
+  purchase_orders        purchase_orders?         @relation(fields: [po_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  delivery_tracking_logs delivery_tracking_logs[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delivery_tracking_logs {
+  id                String           @id @db.Uuid
+  delivery_order_id String?          @db.Uuid
+  latitude          Decimal          @db.Decimal(10, 8)
+  longitude         Decimal          @db.Decimal(11, 8)
+  recorded_at       DateTime?        @default(now()) @db.Timestamp(6)
+  delivery_orders   delivery_orders? @relation(fields: [delivery_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model inventory_stocks {
+  id               String            @id @db.Uuid
+  warehouse_id     String?           @db.Uuid
+  material_id      String?           @db.Uuid
+  quantity         Int               @default(0)
+  last_updated     DateTime?         @default(now()) @db.Timestamp(6)
+  material_masters material_masters? @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  warehouses       warehouses?       @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([warehouse_id, material_id])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model inventory_transactions {
+  id                 String            @id @db.Uuid
+  warehouse_id       String?           @db.Uuid
+  material_id        String?           @db.Uuid
+  transaction_type   String            @db.VarChar(50)
+  quantity           Int
+  reference_id       String?           @db.Uuid
+  notes              String?
+  created_at         DateTime?         @default(now()) @db.Timestamp(6)
+  do_number          String?           @db.VarChar(100)
+  evidence_photo_url String?
+  material_masters   material_masters? @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  warehouses         warehouses?       @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model material_masters {
+  id                     String                   @id @db.Uuid
+  material_code          String                   @unique @db.VarChar(100)
+  material_name          String
+  category               String?
+  specification          String?
+  unit                   String?                  @db.VarChar(50)
+  minimum_stock          Int?                     @default(0)
+  is_active              Boolean?                 @default(true)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  unit_price             Decimal?                 @default(0) @db.Decimal(15, 2)
+  inventory_stocks       inventory_stocks[]
+  inventory_transactions inventory_transactions[]
+  project_requirements   project_requirements[]
+  purchase_order_items   purchase_order_items[]
+  rfc_items              rfc_items[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model project_activities {
+  id         String    @id @db.Uuid
+  project_id String?   @db.Uuid
+  action     String    @db.VarChar(100)
+  details    String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  projects   projects? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model project_requirements {
+  id               String            @id @db.Uuid
+  project_id       String?           @db.Uuid
+  material_id      String?           @db.Uuid
+  estimated_qty    Int               @default(0)
+  notes            String?
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?         @default(now()) @db.Timestamp(6)
+  material_masters material_masters? @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects         projects?         @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model projects {
+  id                   String                 @id @db.Uuid
+  project_name         String                 @db.VarChar(255)
+  customer             String?                @db.VarChar(255)
+  region               String?                @db.VarChar(255)
+  start_date           DateTime?              @db.Timestamp(6)
+  end_date             DateTime?              @db.Timestamp(6)
+  pic                  String?                @db.VarChar(255)
+  status               String?                @db.VarChar(50)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
+  project_code         String?                @db.VarChar(100)
+  whatsapp_number      String?                @db.VarChar(100)
+  project_type         String?                @db.VarChar(100)
+  project_activities   project_activities[]
+  project_requirements project_requirements[]
+  rfcs                 rfcs[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model purchase_order_items {
+  id                String            @id @db.Uuid
+  purchase_order_id String?           @db.Uuid
+  material_id       String?           @db.Uuid
+  quantity          Int               @default(1)
+  unit_price        Decimal?          @db.Decimal(15, 2)
+  total_price       Decimal?          @db.Decimal(15, 2)
+  notes             String?
+  material_masters  material_masters? @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purchase_orders   purchase_orders?  @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model purchase_orders {
+  id                   String                 @id @db.Uuid
+  po_number            String                 @unique @db.VarChar(100)
+  vendor               String                 @db.VarChar(255)
+  rfc_id               String?                @db.Uuid
+  expected_date        DateTime?              @db.Timestamp(6)
+  notes                String?
+  status               String?                @db.VarChar(50)
+  items_count          Int?                   @default(0)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
+  transporter          String?                @db.VarChar(255)
+  driver_name          String?                @db.VarChar(255)
+  vehicle_number       String?                @db.VarChar(100)
+  deliver_to           String?                @db.VarChar(500)
+  signed_document_url  String?                @db.VarChar(500)
+  approver_id          String?                @db.Uuid
+  delivery_orders      delivery_orders[]
+  purchase_order_items purchase_order_items[]
+  rfcs                 rfcs?                  @relation(fields: [rfc_id], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rfc_items {
+  id               String            @id @db.Uuid
+  rfc_id           String?           @db.Uuid
+  material_id      String?           @db.Uuid
+  request_qty      Int
+  approved_qty     Int?              @default(0)
+  notes            String?
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?         @default(now()) @db.Timestamp(6)
+  material_masters material_masters? @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rfcs             rfcs?             @relation(fields: [rfc_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rfcs {
+  id                                    String            @id @db.Uuid
+  rfc_number                            String            @unique @db.VarChar(100)
+  project_id                            String?           @db.Uuid
+  requestor_id                          String?           @db.Uuid
+  location                              String?
+  status                                String?           @default("DRAFT") @db.VarChar(50)
+  notes                                 String?
+  request_document                      String?           @db.VarChar(500)
+  signed_document                       String?           @db.VarChar(500)
+  created_at                            DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at                            DateTime?         @default(now()) @db.Timestamp(6)
+  site_approver_id                      String?           @db.Uuid
+  finance_approver_id                   String?           @db.Uuid
+  request_date                          DateTime?         @db.Timestamp(6)
+  purchase_orders                       purchase_orders[]
+  rfc_items                             rfc_items[]
+  users_rfcs_finance_approver_idTousers users?            @relation("rfcs_finance_approver_idTousers", fields: [finance_approver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                              projects?         @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_rfcs_requestor_idTousers        users?            @relation("rfcs_requestor_idTousers", fields: [requestor_id], references: [id], onUpdate: NoAction)
+  users_rfcs_site_approver_idTousers    users?            @relation("rfcs_site_approver_idTousers", fields: [site_approver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transfers {
+  id              String    @id @db.Uuid
+  transfer_number String    @unique @db.VarChar(100)
+  from_location   String    @db.VarChar(255)
+  to_location     String    @db.VarChar(255)
+  transfer_date   DateTime? @db.Timestamp(6)
+  reason          String?
+  status          String?   @db.VarChar(50)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model users {
+  id                                   String    @id @db.Uuid
+  name                                 String    @db.VarChar(255)
+  email                                String    @unique @db.VarChar(255)
+  role                                 String?   @default("USER") @db.VarChar(50)
+  is_active                            Boolean?  @default(true)
+  created_at                           DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                           DateTime? @default(now()) @db.Timestamp(6)
+  password                             String?   @default("123") @db.VarChar(255)
+  rfcs_rfcs_finance_approver_idTousers rfcs[]    @relation("rfcs_finance_approver_idTousers")
+  rfcs_rfcs_requestor_idTousers        rfcs[]    @relation("rfcs_requestor_idTousers")
+  rfcs_rfcs_site_approver_idTousers    rfcs[]    @relation("rfcs_site_approver_idTousers")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model vendors {
+  id             String    @id @db.Uuid
+  vendor_code    String    @unique @db.VarChar(100)
+  name           String    @db.VarChar(255)
+  contact_person String?   @db.VarChar(255)
+  email          String?   @db.VarChar(255)
+  phone          String?   @db.VarChar(50)
+  address        String?
+  is_active      Boolean?  @default(true)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model warehouses {
+  id                     String                   @id @db.Uuid
+  code                   String                   @unique @db.VarChar(100)
+  name                   String                   @db.VarChar(255)
+  location               String?                  @db.VarChar(255)
+  coordinates            String?                  @db.VarChar(255)
+  evidence               String?                  @db.VarChar(255)
+  type                   String?                  @db.VarChar(50)
+  capacity               String?                  @db.VarChar(100)
+  status                 String?                  @db.VarChar(50)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  inventory_stocks       inventory_stocks[]
+  inventory_transactions inventory_transactions[]
+}

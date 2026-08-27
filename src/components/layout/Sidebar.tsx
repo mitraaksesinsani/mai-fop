@@ -18,6 +18,7 @@ import {
   History,
   Settings,
   ChevronRight,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -42,7 +43,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
-const groupedNavigation = [
+const globalNavigation = [
   {
     group: 'Main',
     items: [
@@ -59,75 +60,12 @@ const groupedNavigation = [
     ]
   },
   {
-    group: 'Project Lifecycle (FOPLP)',
+    group: 'Projects',
     items: [
       {
-        label: 'Project Initiation',
+        label: 'Project Master List',
         href: '/projects',
         icon: FolderKanban,
-        children: [
-          { label: 'Project Master List', href: '/projects' },
-          { label: 'Classification', href: '/projects/classification' },
-        ],
-      },
-      {
-        label: 'Engineering Planning',
-        href: '/planning',
-        icon: FileSpreadsheet,
-        children: [
-          { label: 'BOQ Management', href: '/planning/boq' },
-          { label: 'Route & Catuan Fiber', href: '/planning/route' },
-          { label: 'Commercial & Margin', href: '/planning/commercial' },
-        ],
-      },
-      {
-        label: 'Survey Management',
-        href: '/survey',
-        icon: MapPin,
-        children: [
-          { label: 'Survey Validation', href: '/survey' },
-          { label: 'KML & Route Verification', href: '/survey/kml' },
-          { label: 'Permit Management', href: '/survey/permits' },
-        ],
-      },
-      {
-        label: 'DRM Approval',
-        href: '/drm',
-        icon: FileCheck2,
-        children: [
-          { label: 'Design Review & Decision', href: '/drm' },
-          { label: 'Baseline Lock', href: '/drm/baselines' },
-        ],
-      },
-      {
-        label: 'Implementation',
-        href: '/implementation',
-        icon: HardHat,
-        children: [
-          { label: 'Construction Progress', href: '/implementation' },
-          { label: 'Evidence Vault', href: '/implementation/evidence' },
-          { label: 'Issue & Risk Control', href: '/implementation/issues' },
-        ],
-      },
-      {
-        label: 'Commissioning',
-        href: '/commissioning',
-        icon: ClipboardCheck,
-        children: [
-          { label: 'OTDR & Power Test Results', href: '/commissioning/tests' },
-          { label: 'Defect & Punch List', href: '/commissioning/defects' },
-          { label: 'BA Acceptance (BA UT)', href: '/commissioning/acceptance' },
-        ],
-      },
-      {
-        label: 'Closing & Handover',
-        href: '/closing',
-        icon: CheckSquare2,
-        children: [
-          { label: 'As-Built Documentation', href: '/closing/documentation' },
-          { label: 'Asset Inventory Record', href: '/closing/assets' },
-          { label: 'Final Profitability Report', href: '/closing/profitability' },
-        ],
       },
     ]
   },
@@ -231,6 +169,8 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
   const { user } = useAuth();
   const [counts, setCounts] = React.useState<any>({ approvals: 0 });
 
+  const currentNavigation = globalNavigation;
+
   React.useEffect(() => {
     const fetchCounts = async () => {
       try {
@@ -254,13 +194,15 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
           </div>
           <div className="flex flex-col">
             <h1 className="text-lg font-bold tracking-tight text-primary">FOPLP</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium max-w-[140px]">Fiber Optic Project Platform</p>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium max-w-[140px]">
+              Fiber Optic Project Platform
+            </p>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">
-        {groupedNavigation.map((group) => (
+        {currentNavigation.map((group) => (
           <SidebarGroup key={group.group}>
             <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase px-3 mb-1">
               {group.group}

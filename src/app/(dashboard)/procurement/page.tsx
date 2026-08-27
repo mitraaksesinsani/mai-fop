@@ -19,21 +19,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DataTablePagination } from '@/components/shared/DataTablePagination';
 
+import { useProject } from '@/context/ProjectContext';
+
 interface POItem {
   id?: string;
   materialName: string;
   quantity: number;
 }
 
- export default function ProcurementPage() {
- const { user } = useAuth();
- const router = useRouter();
- const [pos, setPos] = useState<any[]>([]);
- const [loading, setLoading] = useState(true);
- const [search, setSearch] = useState('');
- 
- const [page, setPage] = useState(1);
- const [pageSize, setPageSize] = useState(10);
+export default function ProcurementPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const { selectedProjectId } = useProject();
+  const [pos, setPos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const filteredPos = selectedProjectId === 'all'
+    ? pos
+    : pos.filter((po) => po.projectId === selectedProjectId || !po.projectId);
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Delete PO state
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -122,22 +129,24 @@ interface POItem {
  <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
  <p className="text-muted-foreground">Loading purchase orders...</p>
  </div>
- ) : pos.length > 0 ? (
- <>
- <Table className="whitespace-nowrap">
- <TableHeader>
- <TableRow>
- <TableHead className="w-[150px]">PO Number</TableHead>
- <TableHead className="w-[250px]">Vendor</TableHead>
- <TableHead className="w-[150px]">Expected</TableHead>
- <TableHead className="w-[120px]">Status</TableHead>
- <TableHead className="w-[80px] text-right">Action</TableHead>
- </TableRow>
- </TableHeader>
- <TableBody>
- {pos.slice((page - 1) * pageSize, page * pageSize).map((po) => (
- <TableRow key={po.id} className="hover:bg-muted/30">
- <TableCell className="font-medium text-primary">{po.poNumber}</TableCell>
+  ) : filteredPos.length > 0 ? (
+  <>
+  <Table className="whitespace-nowrap">
+  <TableHeader>
+  <TableRow>
+  <TableHead className="w-[150px]">PO Number</TableHead>
+  <TableHead className="w-[130px]">Project ID</TableHead>
+  <TableHead className="w-[220px]">Vendor</TableHead>
+  <TableHead className="w-[150px]">Expected</TableHead>
+  <TableHead className="w-[120px]">Status</TableHead>
+  <TableHead className="w-[80px] text-right">Action</TableHead>
+  </TableRow>
+  </TableHeader>
+  <TableBody>
+  {filteredPos.slice((page - 1) * pageSize, page * pageSize).map((po) => (
+  <TableRow key={po.id} className="hover:bg-muted/30">
+  <TableCell className="font-medium text-primary">{po.poNumber}</TableCell>
+  <TableCell className="font-mono text-xs text-muted-foreground">{po.projectId || 'PRJ-2026-001'}</TableCell>
  <TableCell>{po.vendor}</TableCell>
  <TableCell className="text-muted-foreground">
  {po.expectedDate ? formatDate(po.expectedDate) : '-'}
@@ -181,7 +190,7 @@ interface POItem {
  </TableBody>
  </Table>
  <DataTablePagination 
-    totalItems={pos.length} 
+    totalItems={filteredPos.length} 
     pageSize={pageSize} 
     currentPage={page} 
     onPageChange={setPage} 

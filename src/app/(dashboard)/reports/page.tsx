@@ -5,7 +5,6 @@ import { BarChart3, FileText, ShoppingCart, Warehouse, Package, FolderKanban, Do
 
 const reports = [
   { id: 'inventory', title: 'Inventory Report', description: 'Current stock, stock movement, warehouse balance', icon: Package },
-  { id: 'rfc', title: 'RFC Report', description: 'RFC history, approval status, material requested', icon: FileText },
   { id: 'procurement', title: 'Procurement Report', description: 'PO progress, delivery status, vendor performance', icon: ShoppingCart },
   { id: 'warehouse', title: 'Warehouse Report', description: 'Material masuk, keluar, stok aktual per warehouse', icon: Warehouse },
   { id: 'project_consumption', title: 'Project Consumption', description: 'Material usage per project, remaining material', icon: FolderKanban },

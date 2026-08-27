@@ -101,7 +101,6 @@ export default function LogisticsHistoryPage() {
     <div className="flex flex-col gap-0.5">
       <span className="font-medium">{d.project?.projectName || '-'}</span>
       {d.po && <span className="text-[10px] text-muted-foreground">PO: {d.po.poNumber}</span>}
-      {d.rfc && <span className="text-[10px] text-muted-foreground">RFC: {d.rfc.rfcNumber}</span>}
     </div>
   </TableCell>
   <TableCell>
@@ -168,7 +167,6 @@ export default function LogisticsHistoryPage() {
             <div className="flex flex-col gap-1">
               <p><span className="font-medium">Project:</span> {selectedDO.project?.projectName || '-'}</p>
               <p><span className="font-medium">Purchase Order:</span> {selectedDO.po?.poNumber || '-'}</p>
-              <p><span className="font-medium">RFC:</span> {selectedDO.rfc?.rfcNumber || '-'}</p>
             </div>
           </div>
         </div>

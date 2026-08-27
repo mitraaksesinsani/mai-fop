@@ -64,7 +64,7 @@ export default function TopBar() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search anything..."
+            placeholder="Cari data proyek, BOQ, PO..."
             className="w-full pl-9 bg-muted/50 focus-visible:bg-background"
           />
         </div>

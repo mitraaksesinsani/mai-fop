@@ -7,6 +7,8 @@ import AppSidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
+import { ProjectProvider } from '@/context/ProjectContext';
+
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -53,7 +55,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      <ProjectProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </ProjectProvider>
     </AuthProvider>
   );
 }
