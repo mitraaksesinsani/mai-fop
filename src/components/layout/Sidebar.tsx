@@ -93,12 +93,13 @@ const globalNavigation = [
       },
       {
         label: 'Master Data',
-        href: '/settings',
-        icon: Settings,
+        href: '/master-data',
+        icon: FileSpreadsheet,
         children: [
-          { label: 'Customers', href: '/settings/customers' },
-          { label: 'Materials & Items', href: '/settings/items' },
-          { label: 'Users & Roles', href: '/settings/users' },
+          { label: 'Materials & Items', href: '/master-data/materials' },
+          { label: 'Vendors', href: '/master-data/vendors' },
+          { label: 'Warehouses', href: '/master-data/warehouses' },
+          { label: 'Customers', href: '/settings/customers' }, // Still in settings folder for now, but logical master data
         ],
       },
     ]

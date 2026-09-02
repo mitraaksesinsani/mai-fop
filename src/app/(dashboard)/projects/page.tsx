@@ -273,15 +273,15 @@ export default function ProjectsPage() {
           </div>
         </CardHeader>
         <CardContent className="px-0">
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="font-semibold text-foreground py-4">Project Name</TableHead>
-                <TableHead className="font-semibold text-foreground">Manager</TableHead>
-                <TableHead className="font-semibold text-foreground">Schedule</TableHead>
-                <TableHead className="font-semibold text-foreground">Details</TableHead>
-                <TableHead className="font-semibold text-foreground">Status</TableHead>
-                <TableHead className="font-semibold text-foreground text-right pr-4">Action</TableHead>
+              <TableRow className="hover:bg-transparent border-b border-border/60">
+                <TableHead className="font-semibold text-foreground py-4 w-[35%]">Project Name</TableHead>
+                <TableHead className="font-semibold text-foreground w-[15%]">Manager</TableHead>
+                <TableHead className="font-semibold text-foreground w-[15%]">Schedule</TableHead>
+                <TableHead className="font-semibold text-foreground w-[15%]">Details</TableHead>
+                <TableHead className="font-semibold text-foreground w-[10%]">Status</TableHead>
+                <TableHead className="font-semibold text-foreground text-right pr-4 w-[10%]">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -306,12 +306,13 @@ export default function ProjectsPage() {
                   return (
                   <TableRow 
                     key={p.id} 
-                    className="hover:bg-muted/30 transition-colors"
+                    className="hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/60"
+                    onClick={() => openDetail(p)}
                   >
-                    <TableCell className="py-4">
+                    <TableCell className="py-2.5">
                       <div>
                         <div className="font-medium text-foreground">{p.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{p.id}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{p.contractNo ? p.contractNo.split(' | ')[0] : p.id.substring(0, 8).toUpperCase()}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -330,7 +331,7 @@ export default function ProjectsPage() {
                       <StatusBadge status={p.status || 'Active'} />
                     </TableCell>
                     <TableCell className="text-right pr-4">
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" />}>
                             <MoreVertical className="h-4 w-4" />

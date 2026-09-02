@@ -40,7 +40,7 @@ function LoginForm() {
       <div className="hidden lg:block w-[60%] relative">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url("/login-bg.jpg")' }}
+          style={{ backgroundImage: 'url("/login-bg-new.jpg")' }}
         />
       </div>
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import Image from 'next/image';
+import * as htmlToImage from 'html-to-image';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +20,46 @@ export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { projects, updateProject } = useProject();
-  
+
+  // Export State
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [exportText, setExportText] = useState('Copy Data');
+
+  const handleExportImage = async () => {
+    if (!reportRef.current) return;
+    setIsExporting(true);
+    setExportText('Menyalin...');
+    try {
+      const blob = await htmlToImage.toBlob(reportRef.current, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+      });
+      
+      if (blob) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          setExportText('Tersalin!');
+          setTimeout(() => setExportText('Copy Data'), 3000);
+        } catch (err) {
+          console.error('Gagal menyalin gambar', err);
+          setExportText('Gagal Menyalin');
+          setTimeout(() => setExportText('Copy Data'), 3000);
+        }
+      } else {
+        throw new Error('Blob is null');
+      }
+    } catch (err) {
+      console.error('Gagal membuat gambar', err);
+      setExportText('Gagal Export');
+      setTimeout(() => setExportText('Copy Data'), 3000);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Phase 1 States
   const [isEditingBOQ, setIsEditingBOQ] = useState(false);
   const [newBOQItem, setNewBOQItem] = useState({ name: '', quantity: 1, unit: 'm', price: 0 });
@@ -39,7 +80,7 @@ export default function ProjectDetailPage() {
     { name: 'Jasa Penarikan Kabel FO', unit: 'm', price: 3500 },
     { name: 'Jasa Pendirian Tiang', unit: 'titik', price: 150000 },
   ];
-  
+
   // Commercial States
   const [commercialData, setCommercialData] = useState({ capex: 0, opex: 0, revenue: 0 });
   const [isEditingCommercial, setIsEditingCommercial] = useState(false);
@@ -85,14 +126,12 @@ export default function ProjectDetailPage() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList variant="line" className="w-full flex-wrap justify-start border-b rounded-none px-0 h-auto gap-x-6 gap-y-2 mb-6">
           <TabsTrigger value="overview" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Overview</TabsTrigger>
-          <TabsTrigger value="engineering" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Engineering Planning</TabsTrigger>
-          <TabsTrigger value="survey" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Survey Management</TabsTrigger>
-          <TabsTrigger value="drm" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">DRM Approval</TabsTrigger>
+          <TabsTrigger value="planning" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Planning</TabsTrigger>
           <TabsTrigger value="implementation" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Implementation</TabsTrigger>
           <TabsTrigger value="commissioning" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Commissioning</TabsTrigger>
           <TabsTrigger value="closing" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Closing & Handover</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview" className="mt-0">
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -214,7 +253,7 @@ export default function ProjectDetailPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Phase 2 */}
                   <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
@@ -359,13 +398,18 @@ export default function ProjectDetailPage() {
             </Card>
           </div>
         </TabsContent>
-        
-        <TabsContent value="engineering" className="mt-0">
+
+        <TabsContent value="planning" className="mt-0">
           <Tabs defaultValue="boq" className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
               <TabsTrigger value="boq" className="flex-none">BOQ Management</TabsTrigger>
               <TabsTrigger value="route" className="flex-none">Route & Catuan Fiber</TabsTrigger>
               <TabsTrigger value="commercial" className="flex-none">Commercial & Margin</TabsTrigger>
+              <TabsTrigger value="validation" className="flex-none">Survey Validation</TabsTrigger>
+              <TabsTrigger value="kml" className="flex-none">KML & Route Verification</TabsTrigger>
+              <TabsTrigger value="permits" className="flex-none">Permit Management</TabsTrigger>
+              <TabsTrigger value="review" className="flex-none">Design Review & Decision</TabsTrigger>
+              <TabsTrigger value="baselines" className="flex-none">Baseline Lock</TabsTrigger>
             </TabsList>
             <TabsContent value="boq">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
@@ -439,8 +483,8 @@ export default function ProjectDetailPage() {
                             {isEditingBOQ && (
                               <TableRow className="border-b border-border hover:bg-transparent transition-none">
                                 <TableCell className="py-2">
-                                  <Select 
-                                    value={newBOQItem.name} 
+                                  <Select
+                                    value={newBOQItem.name}
                                     onValueChange={(val) => {
                                       const material = MASTER_MATERIALS.find(m => m.name === val);
                                       if (material) {
@@ -466,7 +510,7 @@ export default function ProjectDetailPage() {
                                   </Select>
                                 </TableCell>
                                 <TableCell className="py-2">
-                                  <Input type="number" value={newBOQItem.quantity || ''} onChange={e => setNewBOQItem({...newBOQItem, quantity: parseInt(e.target.value) || 0})} className="h-8 text-xs w-20 border-dashed" />
+                                  <Input type="number" value={newBOQItem.quantity || ''} onChange={e => setNewBOQItem({ ...newBOQItem, quantity: parseInt(e.target.value) || 0 })} className="h-8 text-xs w-20 border-dashed" />
                                 </TableCell>
                                 <TableCell className="py-2 text-foreground/80">
                                   <div className="flex h-8 items-center text-xs px-3 bg-muted/30 border border-dashed rounded-md w-20">{newBOQItem.unit || '-'}</div>
@@ -493,7 +537,7 @@ export default function ProjectDetailPage() {
                           </TableBody>
                         </Table>
                       </div>
-                      
+
                       {project.boqItems && project.boqItems.length > 0 && (
                         <div className="flex justify-end pt-4">
                           <div className="bg-muted px-4 py-2 rounded-md">
@@ -612,21 +656,21 @@ export default function ProjectDetailPage() {
                               </div>
                               <div className="space-y-2">
                                 <Label>Biaya Tambahan (Jasa, Perizinan, dll)</Label>
-                                <Input type="number" value={commercialData.capex || ''} onChange={e => setCommercialData({...commercialData, capex: parseInt(e.target.value) || 0})} />
+                                <Input type="number" value={commercialData.capex || ''} onChange={e => setCommercialData({ ...commercialData, capex: parseInt(e.target.value) || 0 })} />
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-4 col-span-1 md:col-span-3 mt-2">
                             <h4 className="font-medium text-sm border-b pb-2">Operational & Revenue (OPEX & Rev)</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <Label>Estimasi OPEX (Rp/bulan)</Label>
-                                <Input type="number" value={commercialData.opex || ''} onChange={e => setCommercialData({...commercialData, opex: parseInt(e.target.value) || 0})} />
+                                <Input type="number" value={commercialData.opex || ''} onChange={e => setCommercialData({ ...commercialData, opex: parseInt(e.target.value) || 0 })} />
                               </div>
                               <div className="space-y-2">
                                 <Label>Proyeksi Pendapatan (Rp/bulan)</Label>
-                                <Input type="number" value={commercialData.revenue || ''} onChange={e => setCommercialData({...commercialData, revenue: parseInt(e.target.value) || 0})} />
+                                <Input type="number" value={commercialData.revenue || ''} onChange={e => setCommercialData({ ...commercialData, revenue: parseInt(e.target.value) || 0 })} />
                               </div>
                             </div>
                           </div>
@@ -651,18 +695,17 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="bg-primary/5 border border-primary/20 p-4 rounded-md mt-6">
                         <div className="flex justify-between items-center">
                           <p className="font-medium">Proyeksi Gross Margin Bulanan</p>
-                          <p className={`text-xl font-bold ${
-                            isEditingCommercial 
+                          <p className={`text-xl font-bold ${isEditingCommercial
                               ? (commercialData.revenue - commercialData.opex > 0 ? 'text-green-600' : 'text-red-500')
                               : ((project.commercial?.revenue || 0) - (project.commercial?.opex || 0) > 0 ? 'text-green-600' : 'text-red-500')
-                          }`}>
-                            Rp {isEditingCommercial 
-                                ? (commercialData.revenue - commercialData.opex).toLocaleString() 
-                                : ((project.commercial?.revenue || 0) - (project.commercial?.opex || 0)).toLocaleString()}
+                            }`}>
+                            Rp {isEditingCommercial
+                              ? (commercialData.revenue - commercialData.opex).toLocaleString()
+                              : ((project.commercial?.revenue || 0) - (project.commercial?.opex || 0)).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -671,16 +714,6 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
-        </TabsContent>
-        
-        <TabsContent value="survey" className="mt-0">
-          <Tabs defaultValue="validation" className="w-full">
-            <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
-              <TabsTrigger value="validation" className="flex-none">Survey Validation</TabsTrigger>
-              <TabsTrigger value="kml" className="flex-none">KML & Route Verification</TabsTrigger>
-              <TabsTrigger value="permits" className="flex-none">Permit Management</TabsTrigger>
-            </TabsList>
             <TabsContent value="validation">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
                 <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Survey Validation</CardTitle></CardHeader>
@@ -726,15 +759,6 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
-        </TabsContent>
-        
-        <TabsContent value="drm" className="mt-0">
-          <Tabs defaultValue="review" className="w-full">
-            <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
-              <TabsTrigger value="review" className="flex-none">Design Review & Decision</TabsTrigger>
-              <TabsTrigger value="baselines" className="flex-none">Baseline Lock</TabsTrigger>
-            </TabsList>
             <TabsContent value="review">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
                 <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Design Review & Decision</CardTitle></CardHeader>
@@ -769,29 +793,200 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="implementation" className="mt-0">
-          <Tabs defaultValue="progress" className="w-full">
+          <Tabs defaultValue="daily" className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
-              <TabsTrigger value="progress" className="flex-none">Construction Progress</TabsTrigger>
+              <TabsTrigger value="daily" className="flex-none">Daily Progress</TabsTrigger>
+              <TabsTrigger value="progress" className="flex-none">Progress</TabsTrigger>
               <TabsTrigger value="evidence" className="flex-none">Evidence Vault</TabsTrigger>
               <TabsTrigger value="issues" className="flex-none">Issue & Risk Control</TabsTrigger>
             </TabsList>
+            <TabsContent value="daily">
+              <Card ref={reportRef} className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0 bg-card">
+                <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between" data-html2canvas-ignore="false">
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-12 h-12 shrink-0">
+                      <Image src="/images/mai-logo.png" alt="MAI Logo" fill className="object-contain" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Laporan Harian (Daily Progress)</CardTitle>
+                      <CardDescription>Rekapitulasi progress pekerjaan harian proyek.</CardDescription>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleExportImage} disabled={isExporting}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    {exportText}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-4 space-y-6">
+                  {/* Header Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/20 p-4 border rounded-md">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Nomor Kontrak</Label>
+                        <div className="col-span-2 text-sm font-semibold">{project.contractNo || '-'}</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Ruas/Link</Label>
+                        <div className="col-span-2 text-sm font-semibold">{project.name || '-'}</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Witel</Label>
+                        <div className="col-span-2 text-sm font-semibold">WITEL SUMBAGSEL</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Mitra Pelaksana</Label>
+                        <div className="col-span-2 text-sm font-semibold">PT. MITRA AKSES INSANI</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Jumlah Tenaga Kerja</Label>
+                        <div className="col-span-2 text-sm font-semibold">26 Orang</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Jumlah Alat Berat</Label>
+                        <div className="col-span-2 text-sm font-semibold">-</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Hujan</Label>
+                        <div className="col-span-2 text-sm font-semibold">CERAH</div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Tanggal Update</Label>
+                        <div className="col-span-2 text-sm font-semibold">1-Sep-2026</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Minggu Ke</Label>
+                        <div className="col-span-2 text-sm font-semibold">1</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Mulai Kerja</Label>
+                        <div className="col-span-2 text-sm font-semibold">22-Okt-2025</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">TOC Akhir</Label>
+                        <div className="col-span-2 text-sm font-semibold">-</div>
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Sisa Hari Kalender</Label>
+                        <div className="col-span-2 text-sm font-semibold">-46266</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Table Rekapitulasi */}
+                  <div className="mt-6 overflow-x-auto w-full">
+                    <Table className="text-sm whitespace-nowrap">
+                      <TableHeader className="bg-muted/30">
+                        <TableRow>
+                          <TableHead rowSpan={2} className="text-left border-r align-middle font-semibold text-foreground px-4">
+                            Lokasi<br />Pekerjaan/Posisi
+                          </TableHead>
+                          <TableHead colSpan={7} className="text-center border-r border-b font-semibold text-foreground px-4">SAT012</TableHead>
+                          <TableHead rowSpan={2} className="align-middle text-center font-semibold text-foreground bg-muted/40 px-4">
+                            Volume<br />Sisa Pekerjaan
+                          </TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead className="text-center text-sm border-r px-4">Volume Kemarin</TableHead>
+                          <TableHead className="text-center text-sm border-r px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Rencana Hari Ini</TableHead>
+                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Volume Hari Ini</TableHead>
+                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-sm border-r px-4">Volume Sekarang</TableHead>
+                          <TableHead className="text-center text-sm border-r px-4">Volume BOQ</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {['Pekerjaan Galian', 'Pekerjaan Jembatan', 'Pekerjaan Handhole (HH)', 'Progres Penarikan Kabel', 'Penyambungan/Jointing'].map((job, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-left font-medium border-r px-4 py-3">{job}</TableCell>
+                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
+                            <TableCell className="border-r text-center text-muted-foreground px-4 py-3">{idx === 2 || idx === 4 ? (idx===4?'Titik':'Unit') : 'Meter'}</TableCell>
+                            <TableCell className="border-r px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">0</TableCell>
+                            <TableCell className="border-r px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">0</TableCell>
+                            <TableCell className="border-r text-center text-muted-foreground bg-red-50/50 dark:bg-red-950/10 px-4 py-3">{idx === 2 || idx === 4 ? (idx===4?'Titik':'Unit') : 'Meter'}</TableCell>
+                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
+                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
+                            <TableCell className="px-4 py-3 bg-muted/20 text-center font-medium">0</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Kendala & Solusi */}
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-[100px_1fr] items-start gap-2 border-t pt-4">
+                      <Label className="text-sm font-semibold text-muted-foreground mt-1">Kendala</Label>
+                      <div className="text-sm leading-relaxed">-</div>
+                    </div>
+                    <div className="grid grid-cols-[100px_1fr] items-start gap-2">
+                      <Label className="text-sm font-semibold text-muted-foreground mt-1">Solusi</Label>
+                      <div className="text-sm leading-relaxed">-</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
             <TabsContent value="progress">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
                 <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg">Construction Progress</CardTitle>
-                    <CardDescription>Kurva-S dan input persentase kemajuan pekerjaan fisik.</CardDescription>
+                    <CardTitle className="text-lg">Progress Pekerjaan</CardTitle>
+                    <CardDescription>Listing dan input progress harian (Tarik Kabel, Tanam Tiang, dsb).</CardDescription>
                   </div>
-                  <Button size="sm">Update Progress</Button>
+                  <Button size="sm"><Plus className="w-4 h-4 mr-2" />Tambah Progress</Button>
                 </CardHeader>
-                <CardContent className="p-4 flex justify-center py-12">
-                  <div className="text-center max-w-sm">
-                    <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <TrendingUp className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">Belum Ada Progress</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Belum ada laporan kemajuan fisik mingguan yang diinput ke dalam sistem.</p>
-                    <Button><Plus className="w-4 h-4 mr-2" />Catat Progress Awal</Button>
+                <CardContent className="p-0 [&_div[data-slot=table-container]]:border-0 [&_div[data-slot=table-container]]:rounded-none">
+                  <div className="overflow-x-auto">
+                    <Table className="text-sm whitespace-nowrap">
+                      <TableHeader className="bg-muted/30">
+                        <TableRow>
+                          <TableHead className="font-semibold text-foreground px-4">TANGGAL</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">ID PROJECT</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">PROJECT NAME</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">DESIGNATOR</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4 text-right">VOLUME</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">SATUAN</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">ALAT KERJA</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4 text-right">JUMLAH TENAGA</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">MANDOR</TableHead>
+                          <TableHead className="font-semibold text-foreground px-4">SPAN</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '398', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '1.200', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '1.300', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '16', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '700', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '12', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '6', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '7', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
+                        ].map((row, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="px-4">{row.date}</TableCell>
+                            <TableCell className="px-4">{row.id}</TableCell>
+                            <TableCell className="px-4">{row.name}</TableCell>
+                            <TableCell className="px-4"><Badge variant="secondary" className="font-mono text-xs">{row.desig}</Badge></TableCell>
+                            <TableCell className="px-4 text-right font-medium">{row.vol}</TableCell>
+                            <TableCell className="px-4 text-muted-foreground">{row.unit}</TableCell>
+                            <TableCell className="px-4">{row.alat}</TableCell>
+                            <TableCell className="px-4 text-right">{row.tenaga}</TableCell>
+                            <TableCell className="px-4">{row.mandor}</TableCell>
+                            <TableCell className="px-4">{row.span}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Edit className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
