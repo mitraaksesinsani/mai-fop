@@ -1,11 +1,11 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 import * as htmlToImage from 'html-to-image';
 import { useProject } from '@/context/ProjectContext';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,13 +13,35 @@ import { ArrowLeft, Edit, Plus, Upload, Map, CircleDollarSign, CheckCircle, File
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { projects, updateProject } = useProject();
+
+  const activeTab = searchParams.get('tab') || 'overview';
+  const planningTab = searchParams.get('planningTab') || 'boq';
+  const surveyTab = searchParams.get('surveyTab') || 'route';
+  const implTab = searchParams.get('implTab') || 'daily';
+  const commTab = searchParams.get('commTab') || 'tests';
+  const closeTab = searchParams.get('closeTab') || 'docs';
+
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('tab', value);
+    router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+  };
+
+  const handleSubTabChange = (paramName: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set(paramName, value);
+    router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+  };
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
@@ -123,8 +145,8 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList variant="line" className="w-full flex-wrap justify-start border-b rounded-none px-0 h-auto gap-x-6 gap-y-2 mb-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList variant="line" className="inline-flex w-fit max-w-full flex-wrap justify-start border-b rounded-none px-0 h-auto gap-x-6 gap-y-2 mb-6">
           <TabsTrigger value="overview" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Overview</TabsTrigger>
           <TabsTrigger value="planning" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Planning</TabsTrigger>
           <TabsTrigger value="implementation" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Implementation</TabsTrigger>
@@ -400,14 +422,11 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="planning" className="mt-0">
-          <Tabs defaultValue="boq" className="w-full">
+          <Tabs value={planningTab} onValueChange={(v) => handleSubTabChange('planningTab', v)} className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
               <TabsTrigger value="boq" className="flex-none">BOQ Management</TabsTrigger>
-              <TabsTrigger value="route" className="flex-none">Route & Catuan Fiber</TabsTrigger>
               <TabsTrigger value="commercial" className="flex-none">Commercial & Margin</TabsTrigger>
-              <TabsTrigger value="validation" className="flex-none">Survey Validation</TabsTrigger>
-              <TabsTrigger value="kml" className="flex-none">KML & Route Verification</TabsTrigger>
-              <TabsTrigger value="permits" className="flex-none">Permit Management</TabsTrigger>
+              <TabsTrigger value="survey" className="flex-none">Survey</TabsTrigger>
               <TabsTrigger value="review" className="flex-none">Design Review & Decision</TabsTrigger>
               <TabsTrigger value="baselines" className="flex-none">Baseline Lock</TabsTrigger>
             </TabsList>
@@ -553,58 +572,6 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="route">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Route & Catuan Fiber</CardTitle>
-                    <CardDescription>Peta rute dan topologi fiber optik.</CardDescription>
-                  </div>
-                  {!isEditingRoute && !project.routeNotes ? (
-                    <Button size="sm" onClick={() => setIsEditingRoute(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Tambah Deskripsi Rute
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => {
-                      if (isEditingRoute) updateProject(project.id, { routeNotes: routeText });
-                      else setRouteText(project.routeNotes || '');
-                      setIsEditingRoute(!isEditingRoute);
-                    }}>
-                      {isEditingRoute ? 'Simpan Rute' : 'Edit Rute'}
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent className={`p-4 ${!project.routeNotes && !isEditingRoute ? 'flex justify-center py-12' : ''}`}>
-                  {!project.routeNotes && !isEditingRoute ? (
-                    <div className="text-center max-w-sm">
-                      <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                        <Map className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-medium text-foreground mb-2">Rute Belum Dipetakan</h3>
-                      <p className="text-muted-foreground text-sm mb-6">Data koordinat dan catuan fiber belum tersedia. Anda dapat mendeskripsikan rute secara manual atau mengunggah data geospasial.</p>
-                      <Button onClick={() => setIsEditingRoute(true)}><Plus className="w-4 h-4 mr-2" />Buat Deskripsi Rute</Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {isEditingRoute ? (
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="route-notes">Deskripsi Rute Geografis & Catuan Fiber</Label>
-                            <Input id="route-notes" placeholder="Misal: Tarikan FO dari ODC X menuju ODP Y menyusuri Jl. Sudirman sejauh 5KM..." value={routeText} onChange={e => setRouteText(e.target.value)} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-muted/30 p-4 rounded-md border">
-                          <h4 className="font-medium text-sm text-muted-foreground mb-2">Deskripsi Rute</h4>
-                          <p className="text-foreground leading-relaxed">{project.routeNotes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
             <TabsContent value="commercial">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
                 <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
@@ -714,9 +681,70 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="validation">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Survey Validation</CardTitle></CardHeader>
+            <TabsContent value="survey" className="mt-0">
+              <Tabs value={surveyTab} onValueChange={(v) => handleSubTabChange('surveyTab', v)} orientation="vertical" className="flex flex-col md:flex-row gap-6 w-full">
+                <TabsList className="flex-col justify-start h-auto w-full md:w-64 bg-transparent border-r rounded-none p-0 gap-1 items-start shrink-0">
+                  <TabsTrigger value="route" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:border-r-2 data-[state=active]:border-primary rounded-none shadow-none">Route & Catuan Fiber</TabsTrigger>
+                  <TabsTrigger value="validation" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:border-r-2 data-[state=active]:border-primary rounded-none shadow-none">Survey Validation</TabsTrigger>
+                  <TabsTrigger value="kml" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:border-r-2 data-[state=active]:border-primary rounded-none shadow-none">KML & Route Verification</TabsTrigger>
+                  <TabsTrigger value="permits" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:border-r-2 data-[state=active]:border-primary rounded-none shadow-none">Permit Management</TabsTrigger>
+                </TabsList>
+                <div className="flex-1 w-full min-w-0">
+              <TabsContent value="route" className="mt-0">
+                <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
+                <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Route & Catuan Fiber</CardTitle>
+                    <CardDescription>Peta rute dan topologi fiber optik.</CardDescription>
+                  </div>
+                  {!isEditingRoute && !project.routeNotes ? (
+                    <Button size="sm" onClick={() => setIsEditingRoute(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Deskripsi Rute
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => {
+                      if (isEditingRoute) updateProject(project.id, { routeNotes: routeText });
+                      else setRouteText(project.routeNotes || '');
+                      setIsEditingRoute(!isEditingRoute);
+                    }}>
+                      {isEditingRoute ? 'Simpan Rute' : 'Edit Rute'}
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent className={`p-4 ${!project.routeNotes && !isEditingRoute ? 'flex justify-center py-12' : ''}`}>
+                  {!project.routeNotes && !isEditingRoute ? (
+                    <div className="text-center max-w-sm">
+                      <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <Map className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium text-foreground mb-2">Rute Belum Dipetakan</h3>
+                      <p className="text-muted-foreground text-sm mb-6">Data koordinat dan catuan fiber belum tersedia. Anda dapat mendeskripsikan rute secara manual atau mengunggah data geospasial.</p>
+                      <Button onClick={() => setIsEditingRoute(true)}><Plus className="w-4 h-4 mr-2" />Buat Deskripsi Rute</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {isEditingRoute ? (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="route-notes">Deskripsi Rute Geografis & Catuan Fiber</Label>
+                            <Input id="route-notes" placeholder="Misal: Tarikan FO dari ODC X menuju ODP Y menyusuri Jl. Sudirman sejauh 5KM..." value={routeText} onChange={e => setRouteText(e.target.value)} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-muted/30 p-4 rounded-md border">
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">Deskripsi Rute</h4>
+                          <p className="text-foreground leading-relaxed">{project.routeNotes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              </TabsContent>
+              <TabsContent value="validation" className="mt-0">
+                <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
+                  <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Survey Validation</CardTitle></CardHeader>
                 <CardContent className="p-4 flex justify-center py-12">
                   <div className="text-center max-w-sm">
                     <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -728,10 +756,11 @@ export default function ProjectDetailPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-            <TabsContent value="kml">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">KML & Route Verification</CardTitle></CardHeader>
+
+              </TabsContent>
+              <TabsContent value="kml" className="mt-0">
+                <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
+                  <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">KML & Route Verification</CardTitle></CardHeader>
                 <CardContent className="p-4 flex justify-center py-12">
                   <div className="text-center max-w-sm">
                     <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -743,21 +772,209 @@ export default function ProjectDetailPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-            <TabsContent value="permits">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Permit Management</CardTitle></CardHeader>
-                <CardContent className="p-4 flex justify-center py-12">
-                  <div className="text-center max-w-sm">
-                    <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <FileText className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">Belum Ada Perizinan</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Status perizinan (RT/RW, dinas terkait, izin galian) akan dikelola di sini.</p>
-                    <Button><Plus className="w-4 h-4 mr-2" />Tambah Perizinan</Button>
+
+              </TabsContent>
+              <TabsContent value="permits" className="mt-0">
+                <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
+                  <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Permit Management</CardTitle>
+                    <CardDescription>Status perizinan (RT/RW, dinas terkait, izin galian) akan dikelola di sini.</CardDescription>
                   </div>
+                  <Dialog>
+                    <DialogTrigger className={buttonVariants({ size: "sm" })}>
+                      <Plus className="w-4 h-4 mr-2" />Tambah Data
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[1000px]">
+                      <DialogHeader>
+                        <DialogTitle>Tambah Data Perizinan</DialogTitle>
+                        <DialogDescription>
+                          Masukkan detail Site ID, Status, dan Progress dari site.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="site-id">Site ID</Label>
+                          <Input id="site-id" placeholder="Masukkan Site ID..." />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="status">Status</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">Drop</SelectItem>
+                              <SelectItem value="1">Aanwijzing</SelectItem>
+                              <SelectItem value="2">Perizinan</SelectItem>
+                              <SelectItem value="3">Matdel</SelectItem>
+                              <SelectItem value="4">Instalasi</SelectItem>
+                              <SelectItem value="5">Finish Install</SelectItem>
+                              <SelectItem value="6">On Air</SelectItem>
+                              <SelectItem value="7">Uji Terima</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="progress">Progress</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih Progress Detail" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              <SelectGroup>
+                                <SelectLabel>Drop</SelectLabel>
+                                <SelectItem value="0.1">Feeder penuh</SelectItem>
+                                <SelectItem value="0.2">Cancel DWS</SelectItem>
+                                <SelectItem value="0.3">Cancel TSel</SelectItem>
+                                <SelectItem value="0.4">Disolusikan PT1 / Squad Alpha / FO Eksisting</SelectItem>
+                                <SelectItem value="0.5">Double order</SelectItem>
+                                <SelectItem value="0.6">High commcase</SelectItem>
+                                <SelectItem value="0.7">Private area</SelectItem>
+                                <SelectItem value="0.8">Change to radio/Jalur Akses</SelectItem>
+                                <SelectItem value="0.9">Sewa lahan tinggi</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Aanwijzing</SelectLabel>
+                                <SelectItem value="1.1">Penunjukan mitra</SelectItem>
+                                <SelectItem value="1.2">Penjadwalan aanwijzing</SelectItem>
+                                <SelectItem value="1.3">Review hasil aanwijzing</SelectItem>
+                                <SelectItem value="1.4">Approval NPD</SelectItem>
+                                <SelectItem value="1.5">Kendala - Basetray ODC Full - Redesign</SelectItem>
+                                <SelectItem value="1.6">Kendala - Distribusi Penuh - Redesign</SelectItem>
+                                <SelectItem value="1.7">Kendala - Feeder Full - Redesign</SelectItem>
+                                <SelectItem value="1.8">Kendala - Catuan butuh QE</SelectItem>
+                                <SelectItem value="1.9">Commcase</SelectItem>
+                                <SelectItem value="1.10">OLT penuh need confirm ED</SelectItem>
+                                <SelectItem value="1.11">Lokasi Bencana/Unavailable FO</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Perizinan</SelectLabel>
+                                <SelectItem value="2.1">Submit permohon ke PU</SelectItem>
+                                <SelectItem value="2.2">Input OSS</SelectItem>
+                                <SelectItem value="2.3">Pemaparan bersama PU</SelectItem>
+                                <SelectItem value="2.4">Survey lokasi bersama PU</SelectItem>
+                                <SelectItem value="2.5">Perhitungan bank garansi</SelectItem>
+                                <SelectItem value="2.6">Menunggu rekomtek</SelectItem>
+                                <SelectItem value="2.7">Izin Kades / Lurah / RTRW</SelectItem>
+                                <SelectItem value="2.8">Izin Developer / Private area</SelectItem>
+                                <SelectItem value="2.9">Pemilik lahan / warga</SelectItem>
+                                <SelectItem value="2.10">Izin LSM / Preman</SelectItem>
+                                <SelectItem value="2.11">Pengajuan Biaya Comcase</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Matdel</SelectLabel>
+                                <SelectItem value="3.1">Depedensi Site Belum Ready</SelectItem>
+                                <SelectItem value="3.2">Order Material</SelectItem>
+                                <SelectItem value="3.3">Material tidak ready</SelectItem>
+                                <SelectItem value="3.4">Proses Pengiriman Pabrik ke WH</SelectItem>
+                                <SelectItem value="3.5">Proses Transfer antar gudang (TAG)</SelectItem>
+                                <SelectItem value="3.6">Proses Pengiriman WH ke site</SelectItem>
+                                <SelectItem value="3.7">Material On Site</SelectItem>
+                                <SelectItem value="3.8">Menunggu manpower</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Instalasi</SelectLabel>
+                                <SelectItem value="4.1">Kendala - Tidak Dapat Izin Warga/Kades/Lurah/Developer</SelectItem>
+                                <SelectItem value="4.2">Proses Gali/Rojok</SelectItem>
+                                <SelectItem value="4.3">Kendala - Gali/Rojok - Paralel Comcase/Perjinan PU</SelectItem>
+                                <SelectItem value="4.4">Proses Penanaman Tiang</SelectItem>
+                                <SelectItem value="4.5">Kendala - Penanaman Tiang - Paralel Comcase/Perjinan PU</SelectItem>
+                                <SelectItem value="4.6">Proses Penarikan Kabel FO</SelectItem>
+                                <SelectItem value="4.7">Kendala - Penarikan Kabel FO - Paralel Comcase/Perjinan PU</SelectItem>
+                                <SelectItem value="4.8">Proses Terminasi catuan / Pemasangan OTB</SelectItem>
+                                <SelectItem value="4.9">Change to radio IP temporer</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Finish Install</SelectLabel>
+                                <SelectItem value="5.1">Selesai Fisik/RFS/L0/Perapihan</SelectItem>
+                                <SelectItem value="5.2">Kendala - Kabel FO catuan rusak butuh QE</SelectItem>
+                                <SelectItem value="5.3">Kendala - OLT full</SelectItem>
+                                <SelectItem value="5.4">Kendala - Dependensi Site Belum Ready</SelectItem>
+                                <SelectItem value="5.5">Kendala - Dependensi LoP lain</SelectItem>
+                                <SelectItem value="5.6">Waiting instalasi ONT</SelectItem>
+                                <SelectItem value="5.7">Sudah Submit ABD ke SDI</SelectItem>
+                                <SelectItem value="5.8">Revisi ABD</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>On Air</SelectLabel>
+                                <SelectItem value="6.1">OA</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Uji Terima</SelectLabel>
+                                <SelectItem value="7.1">Surat permohonan uji terima</SelectItem>
+                                <SelectItem value="7.2">Penunjukan tim uji terima</SelectItem>
+                                <SelectItem value="7.3">Proses uji terima</SelectItem>
+                                <SelectItem value="7.4.1">Revisi hasil uji terima</SelectItem>
+                                <SelectItem value="7.4.2">Penyusunan dok uji terima dan dok project</SelectItem>
+                                <SelectItem value="7.5">Verifikasi Perbaikan Dokument UToleh Tim Pemberi Kerja</SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2 mt-2">
+                          <Label>Checklist Dokumen / Izin</Label>
+                          <div className="pt-2">
+                            <Table className="text-xs whitespace-nowrap">
+                              <TableHeader className="bg-muted/30">
+                                <TableRow>
+                                  <TableHead className="font-medium text-foreground w-[120px]">Kategori</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Tidak ada</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Surat Masuk</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Input OSS</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Survey Bersama PU</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Bank Garansi</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Sewa Lahan</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Rekomtek</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Izin Prinsip</TableHead>
+                                  <TableHead className="font-medium text-foreground text-center">Under Table</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {['PU Nas', 'PU Prov', 'PU Kota / Kab', 'Private Area'].map((category) => (
+                                  <TableRow key={category}>
+                                    <TableCell className="font-medium py-2">{category}</TableCell>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => (
+                                      <TableCell key={col} className="text-center py-2">
+                                        <input type="radio" name={`checklist-${category}`} className="w-4 h-4 cursor-pointer accent-primary" />
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit">Simpan Data</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table className="text-sm whitespace-nowrap">
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="font-semibold text-foreground px-4">Site ID</TableHead>
+                        <TableHead className="font-semibold text-foreground px-4">Status</TableHead>
+                        <TableHead className="font-semibold text-foreground px-4">Progress Detail</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">Belum ada data</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
+
+              </TabsContent>
+                </div>
+              </Tabs>
             </TabsContent>
             <TabsContent value="review">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
@@ -793,7 +1010,7 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="implementation" className="mt-0">
-          <Tabs defaultValue="daily" className="w-full">
+          <Tabs value={implTab} onValueChange={(v) => handleSubTabChange('implTab', v)} className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
               <TabsTrigger value="daily" className="flex-none">Daily Progress</TabsTrigger>
               <TabsTrigger value="progress" className="flex-none">Progress</TabsTrigger>
@@ -1025,7 +1242,7 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="commissioning" className="mt-0">
-          <Tabs defaultValue="tests" className="w-full">
+          <Tabs value={commTab} onValueChange={(v) => handleSubTabChange('commTab', v)} className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
               <TabsTrigger value="tests" className="flex-none">OTDR & Power Test Results</TabsTrigger>
               <TabsTrigger value="defects" className="flex-none">Defect & Punch List</TabsTrigger>
@@ -1080,7 +1297,7 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="closing" className="mt-0">
-          <Tabs defaultValue="docs" className="w-full">
+          <Tabs value={closeTab} onValueChange={(v) => handleSubTabChange('closeTab', v)} className="w-full">
             <TabsList className="mb-4 flex-wrap justify-start h-auto gap-2">
               <TabsTrigger value="docs" className="flex-none">As-Built Documentation</TabsTrigger>
               <TabsTrigger value="assets" className="flex-none">Asset Inventory Record</TabsTrigger>
