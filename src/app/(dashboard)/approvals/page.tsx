@@ -99,9 +99,9 @@ export default function ApprovalsPage() {
               ) : (
                 filteredApprovals.map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell className="font-mono text-xs font-bold">{a.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{a.id}</TableCell>
                     <TableCell className="text-xs font-medium">{a.module}</TableCell>
-                    <TableCell className="text-xs font-mono">{a.project}</TableCell>
+                    <TableCell className="text-xs ">{a.project}</TableCell>
                     <TableCell className="text-xs">{a.requestor}</TableCell>
                     <TableCell className="text-xs font-bold text-primary">{a.target}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{a.date}</TableCell>

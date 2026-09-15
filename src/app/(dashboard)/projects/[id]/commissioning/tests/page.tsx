@@ -101,10 +101,10 @@ export default function CommissioningTestsPage() {
               ) : (
                 filteredOtdr.map((r) => (
                   <TableRow key={r.testId}>
-                    <TableCell className="font-mono text-xs font-bold">{r.testId}</TableCell>
+                    <TableCell className="text-xs font-bold">{r.testId}</TableCell>
                     <TableCell className="text-xs font-medium">{r.fiberId}</TableCell>
                     <TableCell className="text-xs">{r.direction}</TableCell>
-                    <TableCell className="text-xs font-mono">{r.distance}</TableCell>
+                    <TableCell className="text-xs ">{r.distance}</TableCell>
                     <TableCell className="text-xs font-bold">{r.totalLoss}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{r.eventLoss}</TableCell>
                     <TableCell className="text-right">

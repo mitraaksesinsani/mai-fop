@@ -103,7 +103,7 @@ export default function SurveyManagementPage() {
                     <TableCell className="text-xs">{dev.planCost}</TableCell>
                     <TableCell className="text-xs font-bold text-destructive">{dev.actualCost}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-mono text-[10px] bg-amber-500/10 text-amber-600 border-amber-300">
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-300">
                         {dev.reasonCode}
                       </Badge>
                     </TableCell>
@@ -123,14 +123,14 @@ export default function SurveyManagementPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH01</span>: Existing Infrastructure</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH02</span>: Permit Issue</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH03</span>: Road Condition</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH04</span>: Cost Optimization</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH05</span>: Customer Request</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH06</span>: Safety Requirement</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH07</span>: Environmental Condition</div>
-            <div className="p-2 border rounded bg-card"><span className="font-mono font-bold text-primary">CH08</span>: Technical Limitation</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH01</span>: Existing Infrastructure</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH02</span>: Permit Issue</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH03</span>: Road Condition</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH04</span>: Cost Optimization</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH05</span>: Customer Request</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH06</span>: Safety Requirement</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH07</span>: Environmental Condition</div>
+            <div className="p-2 border rounded bg-card"><span className="font-bold text-primary">CH08</span>: Technical Limitation</div>
           </div>
         </CardContent>
       </Card>

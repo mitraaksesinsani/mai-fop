@@ -97,7 +97,7 @@ export default function ClosingDocumentationPage() {
               ) : (
                 filteredDocs.map((d) => (
                   <TableRow key={d.name}>
-                    <TableCell className="font-medium text-xs font-mono text-primary flex items-center gap-2">
+                    <TableCell className="font-medium text-xs text-primary flex items-center gap-2">
                       <FileCheck2 className="w-4 h-4 text-muted-foreground" />
                       {d.name}
                     </TableCell>

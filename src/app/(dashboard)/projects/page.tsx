@@ -23,10 +23,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useProject, Project } from '@/context/ProjectContext';
+import { useBowheer } from '@/context/BowheerContext';
 import { toast } from 'sonner';
 
 export default function ProjectsPage() {
   const { projects, addProject, updateProject, deleteProject, selectedProjectId, setSelectedProjectId } = useProject();
+  const { activeBowheers } = useBowheer();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -101,10 +103,10 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus Project ID ${id}?`)) {
-      deleteProject(id);
-      toast.success(`Project ${id} berhasil dihapus.`);
+  const handleDelete = async (id: string, name?: string) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus proyek "${name || id}"?`)) {
+      await deleteProject(id);
+      toast.success(`Proyek berhasil dihapus.`);
     }
   };
 
@@ -185,17 +187,24 @@ export default function ProjectsPage() {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="projCustomer">Customer / Client</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="projCustomer">Customer / Client (Bowheer)</Label>
+                        <span className="text-[11px] text-muted-foreground">Master Bowheer</span>
+                      </div>
                       <Select
                         value={newProjectData.customer}
-                        onValueChange={(val) => setNewProjectData({ ...newProjectData, customer: val })}
+                        onValueChange={(val) => setNewProjectData({ ...newProjectData, customer: val || undefined })}
                       >
-                        <SelectTrigger id="projCustomer"><SelectValue placeholder="Pilih Client" /></SelectTrigger>
+                        <SelectTrigger id="projCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PT Telkomsel Tbk">PT Telkomsel Tbk</SelectItem>
-                          <SelectItem value="PT Indosat Tbk">PT Indosat Tbk</SelectItem>
-                          <SelectItem value="PT XL Axiata Tbk">PT XL Axiata Tbk</SelectItem>
-                          <SelectItem value="Bank Mandiri">Bank Mandiri</SelectItem>
+                          {activeBowheers.map((b) => (
+                            <SelectItem key={b.id} value={b.name}>
+                              {b.name} {b.code ? `(${b.code})` : ''}
+                            </SelectItem>
+                          ))}
+                          {newProjectData.customer && !activeBowheers.some((b) => b.name === newProjectData.customer) && (
+                            <SelectItem value={newProjectData.customer}>{newProjectData.customer}</SelectItem>
+                          )}
                           <SelectItem value="Lainnya">Lainnya</SelectItem>
                         </SelectContent>
                       </Select>
@@ -204,7 +213,7 @@ export default function ProjectsPage() {
                       <Label htmlFor="projType">Tipe Proyek</Label>
                       <Select
                         value={newProjectData.type}
-                        onValueChange={(val) => setNewProjectData({ ...newProjectData, type: val })}
+                        onValueChange={(val) => setNewProjectData({ ...newProjectData, type: val || undefined })}
                       >
                         <SelectTrigger id="projType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
                         <SelectContent>
@@ -345,7 +354,14 @@ export default function ProjectsPage() {
                               <Edit className="w-4 h-4 mr-2" />
                               Edit Detil
                             </DropdownMenuItem>
-                            <DropdownMenuItem variant="destructive" onClick={() => handleDelete(p.id)} className="cursor-pointer">
+                            <DropdownMenuItem 
+                              variant="destructive" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(p.id, p.name);
+                              }} 
+                              className="cursor-pointer"
+                            >
                               <Trash2 className="w-4 h-4 mr-2" />
                               Hapus Proyek
                             </DropdownMenuItem>
@@ -386,17 +402,24 @@ export default function ProjectsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editCustomer">Customer / Client</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="editCustomer">Customer / Client (Bowheer)</Label>
+                  <span className="text-[11px] text-muted-foreground">Master Bowheer</span>
+                </div>
                 <Select
                   value={editProjectData.customer || ''}
-                  onValueChange={(val) => setEditProjectData({ ...editProjectData, customer: val })}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, customer: val || undefined })}
                 >
-                  <SelectTrigger id="editCustomer"><SelectValue placeholder="Pilih Client" /></SelectTrigger>
+                  <SelectTrigger id="editCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PT Telkomsel Tbk">PT Telkomsel Tbk</SelectItem>
-                    <SelectItem value="PT Indosat Tbk">PT Indosat Tbk</SelectItem>
-                    <SelectItem value="PT XL Axiata Tbk">PT XL Axiata Tbk</SelectItem>
-                    <SelectItem value="Bank Mandiri">Bank Mandiri</SelectItem>
+                    {activeBowheers.map((b) => (
+                      <SelectItem key={b.id} value={b.name}>
+                        {b.name} {b.code ? `(${b.code})` : ''}
+                      </SelectItem>
+                    ))}
+                    {editProjectData.customer && !activeBowheers.some((b) => b.name === editProjectData.customer) && (
+                      <SelectItem value={editProjectData.customer}>{editProjectData.customer}</SelectItem>
+                    )}
                     <SelectItem value="Lainnya">Lainnya</SelectItem>
                   </SelectContent>
                 </Select>
@@ -405,7 +428,7 @@ export default function ProjectsPage() {
                 <Label htmlFor="editType">Tipe Proyek</Label>
                 <Select
                   value={editProjectData.type || ''}
-                  onValueChange={(val) => setEditProjectData({ ...editProjectData, type: val })}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, type: val || undefined })}
                 >
                   <SelectTrigger id="editType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
                   <SelectContent>
@@ -444,7 +467,7 @@ export default function ProjectsPage() {
                 <Label htmlFor="editStatus">Status</Label>
                 <Select
                   value={editProjectData.status || ''}
-                  onValueChange={(val) => setEditProjectData({ ...editProjectData, status: val })}
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, status: val || undefined })}
                 >
                   <SelectTrigger id="editStatus"><SelectValue placeholder="Pilih Status" /></SelectTrigger>
                   <SelectContent>

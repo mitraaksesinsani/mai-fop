@@ -79,12 +79,12 @@ export default function CustomersSettingsPage() {
               ) : (
                 filteredCustomers.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs font-bold">{c.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{c.id}</TableCell>
                     <TableCell className="text-xs font-semibold">{c.name}</TableCell>
                     <TableCell className="text-xs">{c.company}</TableCell>
                     <TableCell className="text-xs">{c.pic}</TableCell>
                     <TableCell className="text-xs text-primary">{c.email}</TableCell>
-                    <TableCell className="text-right text-xs font-mono">{c.phone}</TableCell>
+                    <TableCell className="text-right text-xs ">{c.phone}</TableCell>
                   </TableRow>
                 ))
               )}

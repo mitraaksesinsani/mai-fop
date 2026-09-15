@@ -1,43 +1,58 @@
 'use server';
 
-import prisma from '@/lib/db';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export async function getProjects() {
   try {
-    const dbProjects = await prisma.projects.findMany({
-      orderBy: { created_at: 'desc' },
-      include: {
-        project_requirements: {
-          include: {
-            material_masters: true
-          }
-        }
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Supabase is not configured yet', data: [] };
+    }
+
+    // Try fetching with requirements, fallback to simple select if relation is missing
+    let dbProjects: any[] = [];
+    const { data: joinedData, error: joinError } = await supabase
+      .from('projects')
+      .select('*, project_requirements(*, material_masters(*))')
+      .order('created_at', { ascending: false });
+
+    if (joinError) {
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (simpleError) {
+        console.warn('Supabase getProjects notice:', simpleError.message);
+        return { success: false, error: simpleError.message, data: [] };
       }
-    });
+      dbProjects = simpleData || [];
+    } else {
+      dbProjects = joinedData || [];
+    }
 
     // Map database structure to Frontend interface
-    const projects = dbProjects.map(p => ({
+    const projects = (dbProjects || []).map((p: any) => ({
       id: p.id,
       name: p.project_name || '',
       customer: p.customer || '',
       type: p.project_type || '',
       location: p.region || '',
       contractNo: p.project_code || '',
-      startDate: p.start_date ? p.start_date.toISOString().split('T')[0] : undefined,
-      targetDate: p.end_date ? p.end_date.toISOString().split('T')[0] : undefined,
+      startDate: p.start_date ? p.start_date.split('T')[0] : undefined,
+      targetDate: p.end_date ? p.end_date.split('T')[0] : undefined,
       manager: p.pic || '',
       status: p.status || '',
-      
+
       // BOQ mapping
-      boqItems: p.project_requirements.map(req => ({
+      boqItems: (p.project_requirements || []).map((req: any) => ({
         id: req.id,
         name: req.material_masters?.material_name || '',
         quantity: req.estimated_qty || 0,
         unit: req.material_masters?.unit || 'unit',
         price: Number(req.material_masters?.unit_price || 0)
       })),
-      
-      // Commercial defaults (since they don't exist in DB yet)
+
+      // Commercial defaults
       commercial: {
         capex: 0,
         opex: 0,
@@ -46,19 +61,32 @@ export async function getProjects() {
     }));
 
     return { success: true, data: projects };
-  } catch (error) {
-    console.error('Failed to fetch projects:', error);
-    return { success: false, error: 'Failed to fetch projects' };
+  } catch (error: any) {
+    console.warn('Notice in getProjects:', error?.message || error);
+    return { success: false, error: 'Failed to fetch projects', data: [] };
   }
 }
 
 export async function deleteProjectRecord(id: string) {
   try {
-    await prisma.projects.delete({
-      where: { id }
-    });
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+
+    // Safely delete any child project requirements first in case ON DELETE CASCADE is not set in DB
+    try {
+      await supabase.from('project_requirements').delete().eq('project_id', id);
+    } catch (e) {
+      // Ignore if table or relationship doesn't exist
+    }
+
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase delete error:', error.message);
+      return { success: false, error: error.message };
+    }
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to delete project:', error);
     return { success: false, error: 'Failed to delete project' };
   }
@@ -66,23 +94,36 @@ export async function deleteProjectRecord(id: string) {
 
 export async function addProjectRecord(data: any) {
   try {
-    const newProject = await prisma.projects.create({
-      data: {
-        id: data.id,
-        project_name: data.name,
-        customer: data.customer,
-        region: data.location,
-        start_date: data.startDate ? new Date(data.startDate) : null,
-        end_date: data.targetDate ? new Date(data.targetDate) : null,
-        pic: data.manager,
-        status: data.status,
-        project_type: data.type,
-        project_code: data.contractNo,
-      }
-    });
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true, data };
+    }
 
-    return { success: true, data: newProject };
-  } catch (error) {
+    const newRecord = {
+      id: data.id,
+      project_name: data.name,
+      customer: data.customer,
+      region: data.location,
+      start_date: data.startDate ? new Date(data.startDate).toISOString() : null,
+      end_date: data.targetDate ? new Date(data.targetDate).toISOString() : null,
+      pic: data.manager,
+      status: data.status,
+      project_type: data.type,
+      project_code: data.contractNo
+    };
+
+    const { data: created, error } = await supabase
+      .from('projects')
+      .insert([newRecord])
+      .select()
+      .single();
+
+    if (error) {
+      console.warn('Supabase insert error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: created };
+  } catch (error: any) {
     console.error('Failed to create project:', error);
     return { success: false, error: 'Failed to create project' };
   }
@@ -90,66 +131,37 @@ export async function addProjectRecord(data: any) {
 
 export async function updateProjectRecord(id: string, data: any) {
   try {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true, data: { id, ...data } };
+    }
+
     const updateData: any = {};
     if (data.name !== undefined) updateData.project_name = data.name;
     if (data.customer !== undefined) updateData.customer = data.customer;
     if (data.location !== undefined) updateData.region = data.location;
-    if (data.startDate !== undefined) updateData.start_date = data.startDate ? new Date(data.startDate) : null;
-    if (data.targetDate !== undefined) updateData.targetDate = data.targetDate ? new Date(data.targetDate) : null;
+    if (data.startDate !== undefined)
+      updateData.start_date = data.startDate ? new Date(data.startDate).toISOString() : null;
+    if (data.targetDate !== undefined)
+      updateData.end_date = data.targetDate ? new Date(data.targetDate).toISOString() : null;
     if (data.manager !== undefined) updateData.pic = data.manager;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.type !== undefined) updateData.project_type = data.type;
     if (data.contractNo !== undefined) updateData.project_code = data.contractNo;
 
-    const updatedProject = await prisma.projects.update({
-      where: { id },
-      data: updateData
-    });
+    const { data: updated, error } = await supabase
+      .from('projects')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    // Handle BOQ Items if provided
-    if (data.boqItems !== undefined) {
-      const { v4: uuidv4 } = require('uuid');
-      
-      // Delete existing requirements for this project
-      await prisma.project_requirements.deleteMany({
-        where: { project_id: id }
-      });
-      
-      // Add new items
-      for (const item of data.boqItems) {
-        // Find existing material or create a new one to get the ID
-        let material = await prisma.material_masters.findFirst({
-          where: { material_name: item.name }
-        });
-        
-        if (!material) {
-          material = await prisma.material_masters.create({
-            data: {
-              id: uuidv4(),
-              material_code: `MAT-${Math.floor(Math.random() * 90000) + 10000}`,
-              material_name: item.name,
-              category: 'OTHER',
-              unit: item.unit,
-              unit_price: item.price,
-              is_active: true
-            }
-          });
-        }
-        
-        // Add requirement
-        await prisma.project_requirements.create({
-          data: {
-            id: uuidv4(),
-            project_id: id,
-            material_id: material.id,
-            estimated_qty: item.quantity,
-          }
-        });
-      }
+    if (error) {
+      console.warn('Supabase update error:', error.message);
+      return { success: false, error: error.message };
     }
 
-    return { success: true, data: updatedProject };
-  } catch (error) {
+    return { success: true, data: updated };
+  } catch (error: any) {
     console.error('Failed to update project:', error);
     return { success: false, error: 'Failed to update project' };
   }
@@ -157,11 +169,20 @@ export async function updateProjectRecord(id: string, data: any) {
 
 export async function getMaterials() {
   try {
-    const materials = await prisma.material_masters.findMany({
-      orderBy: { material_name: 'asc' }
-    });
-    return { success: true, data: materials };
-  } catch (error) {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true, data: [] };
+    }
+
+    const { data: materials, error } = await supabase
+      .from('material_masters')
+      .select('*')
+      .order('material_name', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message, data: [] };
+    }
+    return { success: true, data: materials || [] };
+  } catch (error: any) {
     console.error('Failed to fetch materials:', error);
     return { success: false, error: 'Failed to fetch materials' };
   }

@@ -97,12 +97,12 @@ export default function ItemsSettingsPage() {
               ) : (
                 filteredItems.map((i) => (
                   <TableRow key={i.id}>
-                    <TableCell className="font-mono text-xs font-bold">{i.id}</TableCell>
-                    <TableCell className="text-xs font-mono">{i.code}</TableCell>
+                    <TableCell className="text-xs font-bold">{i.id}</TableCell>
+                    <TableCell className="text-xs ">{i.code}</TableCell>
                     <TableCell className="text-xs font-semibold">{i.name}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{i.category}</Badge></TableCell>
-                    <TableCell className="text-xs font-mono">{i.uom}</TableCell>
-                    <TableCell className="text-right text-xs font-mono font-bold text-emerald-600">{i.price}</TableCell>
+                    <TableCell className="text-xs ">{i.uom}</TableCell>
+                    <TableCell className="text-right text-xs font-bold text-emerald-600">{i.price}</TableCell>
                   </TableRow>
                 ))
               )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import * as htmlToImage from 'html-to-image';
 import { useProject } from '@/context/ProjectContext';
@@ -16,6 +16,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import SCurveChart from '@/components/projects/SCurveChart';
+import CumulativeProgressTable from '@/components/projects/CumulativeProgressTable';
+import {
+  DEFAULT_DESIGNATOR_ITEMS,
+  DesignatorItem,
+  calculateOverallProjectProgress,
+  generateSCurveData,
+} from '@/lib/designatorProgress';
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -111,6 +119,57 @@ export default function ProjectDetailPage() {
   const decodedId = decodeURIComponent(params?.id || '');
   const project = projects.find((p) => p.id === decodedId);
 
+  const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>(
+    (project as any)?.designatorItems || DEFAULT_DESIGNATOR_ITEMS
+  );
+
+  useEffect(() => {
+    if (!decodedId) return;
+    try {
+      const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
+      if (saved) {
+        setDesignatorItems(JSON.parse(saved));
+      }
+    } catch (err) {
+      console.error("Failed to load designator items", err);
+    }
+  }, [decodedId]);
+
+  const handleUpdateDesignatorItems = (items: DesignatorItem[]) => {
+    setDesignatorItems(items);
+    try {
+      localStorage.setItem(`proper_project_designators_${decodedId}`, JSON.stringify(items));
+    } catch (err) {
+      console.error("Failed to save designator items", err);
+    }
+  };
+
+  const progressMetrics = calculateOverallProjectProgress(designatorItems);
+  const progressDates = useMemo(() => {
+    if (project?.startDate && project?.targetDate) {
+      const start = new Date(project.startDate);
+      const end = new Date(project.targetDate);
+      const dates = [];
+      let current = new Date(start);
+      let count = 0;
+      while (current <= end && count < 1000) {
+        dates.push(current.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
+        current.setDate(current.getDate() + 1);
+        count++;
+      }
+      if (dates.length > 0) return dates;
+    }
+    const fallback = [];
+    const current = new Date();
+    for (let i = 0; i < 14; i++) {
+      fallback.push(current.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
+      current.setDate(current.getDate() + 1);
+    }
+    return fallback;
+  }, [project?.startDate, project?.targetDate]);
+
+  const sCurveData = generateSCurveData(designatorItems, progressDates);
+
   // Derived values
   const totalBOQ = project?.boqItems?.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) || 0;
 
@@ -139,7 +198,7 @@ export default function ProjectDetailPage() {
             {project.name}
             <StatusBadge status={project.status || 'Planning'} />
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-[10pt] mt-1">
             Project ID: {project.id}
           </p>
         </div>
@@ -147,11 +206,11 @@ export default function ProjectDetailPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList variant="line" className="inline-flex w-fit max-w-full flex-wrap justify-start border-b rounded-none px-0 h-auto gap-x-6 gap-y-2 mb-6">
-          <TabsTrigger value="overview" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Overview</TabsTrigger>
-          <TabsTrigger value="planning" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Planning</TabsTrigger>
-          <TabsTrigger value="implementation" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Implementation</TabsTrigger>
-          <TabsTrigger value="commissioning" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Commissioning</TabsTrigger>
-          <TabsTrigger value="closing" className="pb-3 pt-2 px-1 rounded-none text-sm flex-none">Closing & Handover</TabsTrigger>
+          <TabsTrigger value="overview" className="pb-3 pt-2 px-1 rounded-none text-[10pt] flex-none">Overview</TabsTrigger>
+          <TabsTrigger value="planning" className="pb-3 pt-2 px-1 rounded-none text-[10pt] flex-none">Planning</TabsTrigger>
+          <TabsTrigger value="implementation" className="pb-3 pt-2 px-1 rounded-none text-[10pt] flex-none">Implementation</TabsTrigger>
+          <TabsTrigger value="commissioning" className="pb-3 pt-2 px-1 rounded-none text-[10pt] flex-none">Commissioning</TabsTrigger>
+          <TabsTrigger value="closing" className="pb-3 pt-2 px-1 rounded-none text-[10pt] flex-none">Closing & Handover</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-0">
@@ -175,19 +234,19 @@ export default function ProjectDetailPage() {
                   <CardContent className="p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Customer / Client</div>
+                        <div className="text-[10pt] text-muted-foreground mb-1">Customer / Client</div>
                         <div className="font-medium text-foreground">{project.customer}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Tipe Proyek</div>
+                        <div className="text-[10pt] text-muted-foreground mb-1">Tipe Proyek</div>
                         <div className="font-medium text-foreground">{project.type}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Lokasi Pekerjaan</div>
+                        <div className="text-[10pt] text-muted-foreground mb-1">Lokasi Pekerjaan</div>
                         <div className="font-medium text-foreground">{project.location || '-'}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground mb-1">Nomor Kontrak</div>
+                        <div className="text-[10pt] text-muted-foreground mb-1">Nomor Kontrak</div>
                         <div className="font-medium text-foreground">{project.contractNo || '-'}</div>
                       </div>
                     </div>
@@ -201,7 +260,7 @@ export default function ProjectDetailPage() {
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/20 rounded-lg border border-dashed">
-                      <p className="text-muted-foreground text-sm mb-4">Ruang lingkup belum ditambahkan</p>
+                      <p className="text-muted-foreground text-[10pt] mb-4">Ruang lingkup belum ditambahkan</p>
                       <Button variant="secondary" size="sm">Tambah Lingkup Pekerjaan</Button>
                     </div>
                   </CardContent>
@@ -216,11 +275,11 @@ export default function ProjectDetailPage() {
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
                     <div>
-                      <div className="text-sm text-muted-foreground mb-1">Mulai (Start Date)</div>
+                      <div className="text-[10pt] text-muted-foreground mb-1">Mulai (Start Date)</div>
                       <div className="font-medium text-foreground">{project.startDate || '-'}</div>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground mb-1">Target Selesai</div>
+                      <div className="text-[10pt] text-muted-foreground mb-1">Target Selesai</div>
                       <div className="font-medium text-foreground">{project.targetDate || '-'}</div>
                     </div>
                   </CardContent>
@@ -232,7 +291,7 @@ export default function ProjectDetailPage() {
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
                     <div>
-                      <div className="text-sm text-muted-foreground mb-1">Project Manager (PIC)</div>
+                      <div className="text-[10pt] text-muted-foreground mb-1">Project Manager (PIC)</div>
                       <div className="font-medium text-foreground">{project.manager || '-'}</div>
                     </div>
                   </CardContent>
@@ -260,7 +319,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400">Aktif</Badge>
                     </div>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-[10pt]">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Total BOQ:</span>
                         <span className="font-medium">{project.boqItems?.length || 0} Items</span>
@@ -288,7 +347,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400">Pending</Badge>
                     </div>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-[10pt]">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Titik Koordinat:</span>
                         <span className="font-medium text-amber-600">Menunggu</span>
@@ -316,7 +375,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
                     </div>
-                    <div className="space-y-2 text-sm opacity-60">
+                    <div className="space-y-2 text-[10pt] opacity-60">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Tanggal Submit:</span>
                         <span className="font-medium">-</span>
@@ -344,7 +403,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
                     </div>
-                    <div className="space-y-2 text-sm opacity-60">
+                    <div className="space-y-2 text-[10pt] opacity-60">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Progress Fisik:</span>
                         <span className="font-medium">0%</span>
@@ -372,7 +431,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
                     </div>
-                    <div className="space-y-2 text-sm opacity-60">
+                    <div className="space-y-2 text-[10pt] opacity-60">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Hasil Tes OTDR:</span>
                         <span className="font-medium">-</span>
@@ -400,7 +459,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
                     </div>
-                    <div className="space-y-2 text-sm opacity-60">
+                    <div className="space-y-2 text-[10pt] opacity-60">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Tgl Handover:</span>
                         <span className="font-medium">-</span>
@@ -427,7 +486,7 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="boq" className="flex-none">BOQ Management</TabsTrigger>
               <TabsTrigger value="commercial" className="flex-none">Commercial & Margin</TabsTrigger>
               <TabsTrigger value="survey" className="flex-none">Survey</TabsTrigger>
-              <TabsTrigger value="review" className="flex-none">Design Review & Decision</TabsTrigger>
+              <TabsTrigger value="review" className="flex-none">DRM Plan</TabsTrigger>
               <TabsTrigger value="baselines" className="flex-none">Baseline Lock</TabsTrigger>
             </TabsList>
             <TabsContent value="boq">
@@ -455,7 +514,7 @@ export default function ProjectDetailPage() {
                         <FileText className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <h3 className="text-lg font-medium text-foreground mb-2">Belum ada data BOQ</h3>
-                      <p className="text-muted-foreground text-sm mb-6">Proyek ini belum memiliki daftar material dan Bill of Quantities. Silakan buat baru atau import dari Excel.</p>
+                      <p className="text-muted-foreground text-[10pt] mb-6">Proyek ini belum memiliki daftar material dan Bill of Quantities. Silakan buat baru atau import dari Excel.</p>
                       <div className="flex gap-3 justify-center">
                         <Button variant="outline"><Upload className="w-4 h-4 mr-2" />Import Excel</Button>
                         <Button onClick={() => setIsEditingBOQ(true)}><Plus className="w-4 h-4 mr-2" />Mulai Buat BOQ</Button>
@@ -467,12 +526,12 @@ export default function ProjectDetailPage() {
                         <Table className="border-0">
                           <TableHeader className="bg-transparent">
                             <TableRow className="border-b border-border hover:bg-transparent">
-                              <TableHead className="font-normal text-xs text-muted-foreground">Nama Material</TableHead>
-                              <TableHead className="font-normal text-xs text-muted-foreground">Qty</TableHead>
-                              <TableHead className="font-normal text-xs text-muted-foreground">Satuan</TableHead>
-                              <TableHead className="font-normal text-xs text-muted-foreground">Harga Satuan</TableHead>
-                              <TableHead className="font-normal text-xs text-muted-foreground">Total Harga</TableHead>
-                              <TableHead className="font-normal text-xs text-muted-foreground text-right">{isEditingBOQ ? '' : 'Action'}</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground">Nama Material</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground">Qty</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground">Satuan</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground">Harga Satuan</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground">Total Harga</TableHead>
+                              <TableHead className="font-normal text-[10pt] text-muted-foreground text-right">{isEditingBOQ ? '' : 'Action'}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -492,7 +551,7 @@ export default function ProjectDetailPage() {
                                       <Trash2 className="w-4 h-4 text-red-500" />
                                     </Button>
                                   ) : (
-                                    <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-xs font-medium">
+                                    <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-[10pt] font-medium">
                                       Details
                                     </Button>
                                   )}
@@ -516,12 +575,12 @@ export default function ProjectDetailPage() {
                                       }
                                     }}
                                   >
-                                    <SelectTrigger className="h-8 text-xs border-dashed w-[220px]">
+                                    <SelectTrigger className="h-8 text-[10pt] border-dashed w-[220px]">
                                       <SelectValue placeholder="Pilih dari Master Data..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {MASTER_MATERIALS.map((mat) => (
-                                        <SelectItem key={mat.name} value={mat.name} className="text-xs">
+                                        <SelectItem key={mat.name} value={mat.name} className="text-[10pt]">
                                           {mat.name}
                                         </SelectItem>
                                       ))}
@@ -529,13 +588,13 @@ export default function ProjectDetailPage() {
                                   </Select>
                                 </TableCell>
                                 <TableCell className="py-2">
-                                  <Input type="number" value={newBOQItem.quantity || ''} onChange={e => setNewBOQItem({ ...newBOQItem, quantity: parseInt(e.target.value) || 0 })} className="h-8 text-xs w-20 border-dashed" />
+                                  <Input type="number" value={newBOQItem.quantity || ''} onChange={e => setNewBOQItem({ ...newBOQItem, quantity: parseInt(e.target.value) || 0 })} className="h-8 text-[10pt] w-20 border-dashed" />
                                 </TableCell>
                                 <TableCell className="py-2 text-foreground/80">
-                                  <div className="flex h-8 items-center text-xs px-3 bg-muted/30 border border-dashed rounded-md w-20">{newBOQItem.unit || '-'}</div>
+                                  <div className="flex h-8 items-center text-[10pt] px-3 bg-muted/30 border border-dashed rounded-md w-20">{newBOQItem.unit || '-'}</div>
                                 </TableCell>
                                 <TableCell className="py-2 text-foreground/80">
-                                  <div className="flex h-8 items-center text-xs px-3 bg-muted/30 border border-dashed rounded-md">Rp {(newBOQItem.price || 0).toLocaleString()}</div>
+                                  <div className="flex h-8 items-center text-[10pt] px-3 bg-muted/30 border border-dashed rounded-md">Rp {(newBOQItem.price || 0).toLocaleString()}</div>
                                 </TableCell>
                                 <TableCell className="py-2 text-foreground/80 font-medium">
                                   Rp {(newBOQItem.quantity * newBOQItem.price).toLocaleString()}
@@ -560,7 +619,7 @@ export default function ProjectDetailPage() {
                       {project.boqItems && project.boqItems.length > 0 && (
                         <div className="flex justify-end pt-4">
                           <div className="bg-muted px-4 py-2 rounded-md">
-                            <span className="text-sm text-muted-foreground mr-4">Total Estimasi BOQ:</span>
+                            <span className="text-[10pt] text-muted-foreground mr-4">Total Estimasi BOQ:</span>
                             <span className="text-lg font-bold">
                               Rp {project.boqItems.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0).toLocaleString()}
                             </span>
@@ -604,7 +663,7 @@ export default function ProjectDetailPage() {
                         <CircleDollarSign className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <h3 className="text-lg font-medium text-foreground mb-2">Analisa Belum Tersedia</h3>
-                      <p className="text-muted-foreground text-sm mb-6">Buat analisa margin awal untuk memproyeksikan biaya, pendapatan, dan profitabilitas proyek.</p>
+                      <p className="text-muted-foreground text-[10pt] mb-6">Buat analisa margin awal untuk memproyeksikan biaya, pendapatan, dan profitabilitas proyek.</p>
                       <Button onClick={() => {
                         setCommercialData(project.commercial || { capex: 0, opex: 0, revenue: 0 });
                         setIsEditingCommercial(true);
@@ -645,19 +704,19 @@ export default function ProjectDetailPage() {
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div className="bg-muted/20 p-4 rounded-md border">
-                            <p className="text-sm text-muted-foreground mb-1">Total CAPEX</p>
+                            <p className="text-[10pt] text-muted-foreground mb-1">Total CAPEX</p>
                             <p className="text-xl font-semibold">Rp {(totalBOQ + (project.commercial?.capex || 0)).toLocaleString()}</p>
                             <div className="mt-3 space-y-1">
-                              <p className="text-xs text-muted-foreground flex justify-between"><span>BOQ Material:</span> <span>Rp {totalBOQ.toLocaleString()}</span></p>
-                              <p className="text-xs text-muted-foreground flex justify-between"><span>Biaya Tambahan:</span> <span>Rp {(project.commercial?.capex || 0).toLocaleString()}</span></p>
+                              <p className="text-[10pt] text-muted-foreground flex justify-between"><span>BOQ Material:</span> <span>Rp {totalBOQ.toLocaleString()}</span></p>
+                              <p className="text-[10pt] text-muted-foreground flex justify-between"><span>Biaya Tambahan:</span> <span>Rp {(project.commercial?.capex || 0).toLocaleString()}</span></p>
                             </div>
                           </div>
                           <div className="bg-muted/20 p-4 rounded-md border">
-                            <p className="text-sm text-muted-foreground mb-1">Estimasi OPEX</p>
+                            <p className="text-[10pt] text-muted-foreground mb-1">Estimasi OPEX</p>
                             <p className="text-xl font-semibold">Rp {(project.commercial?.opex || 0).toLocaleString()}/bln</p>
                           </div>
                           <div className="bg-muted/20 p-4 rounded-md border">
-                            <p className="text-sm text-muted-foreground mb-1">Proyeksi Pendapatan</p>
+                            <p className="text-[10pt] text-muted-foreground mb-1">Proyeksi Pendapatan</p>
                             <p className="text-xl font-semibold">Rp {(project.commercial?.revenue || 0).toLocaleString()}/bln</p>
                           </div>
                         </div>
@@ -719,7 +778,7 @@ export default function ProjectDetailPage() {
                         <Map className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <h3 className="text-lg font-medium text-foreground mb-2">Rute Belum Dipetakan</h3>
-                      <p className="text-muted-foreground text-sm mb-6">Data koordinat dan catuan fiber belum tersedia. Anda dapat mendeskripsikan rute secara manual atau mengunggah data geospasial.</p>
+                      <p className="text-muted-foreground text-[10pt] mb-6">Data koordinat dan catuan fiber belum tersedia. Anda dapat mendeskripsikan rute secara manual atau mengunggah data geospasial.</p>
                       <Button onClick={() => setIsEditingRoute(true)}><Plus className="w-4 h-4 mr-2" />Buat Deskripsi Rute</Button>
                     </div>
                   ) : (
@@ -751,7 +810,7 @@ export default function ProjectDetailPage() {
                       <CheckCircle className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Belum Ada Hasil Survey</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Form validasi hasil survey lapangan oleh tim belum diisi.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Form validasi hasil survey lapangan oleh tim belum diisi.</p>
                     <Button><Plus className="w-4 h-4 mr-2" />Mulai Form Survey</Button>
                   </div>
                 </CardContent>
@@ -767,7 +826,7 @@ export default function ProjectDetailPage() {
                       <Map className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Tidak Ada Data KML</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Integrasi file KML/KMZ untuk verifikasi koordinat rute hasil survey lapangan.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Integrasi file KML/KMZ untuk verifikasi koordinat rute hasil survey lapangan.</p>
                     <Button><Upload className="w-4 h-4 mr-2" />Upload File KML/KMZ</Button>
                   </div>
                 </CardContent>
@@ -916,7 +975,7 @@ export default function ProjectDetailPage() {
                         <div className="space-y-2 mt-2">
                           <Label>Checklist Dokumen / Izin</Label>
                           <div className="pt-2">
-                            <Table className="text-xs whitespace-nowrap">
+                            <Table className="text-[10pt] whitespace-nowrap">
                               <TableHeader className="bg-muted/30">
                                 <TableRow>
                                   <TableHead className="font-medium text-foreground w-[120px]">Kategori</TableHead>
@@ -955,7 +1014,7 @@ export default function ProjectDetailPage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table className="text-sm whitespace-nowrap">
+                  <Table className="text-[10pt] whitespace-nowrap">
                     <TableHeader className="bg-muted/30">
                       <TableRow>
                         <TableHead className="font-semibold text-foreground px-4">Site ID</TableHead>
@@ -977,19 +1036,21 @@ export default function ProjectDetailPage() {
               </Tabs>
             </TabsContent>
             <TabsContent value="review">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b"><CardTitle className="text-lg">Design Review & Decision</CardTitle></CardHeader>
-                <CardContent className="p-4 flex justify-center py-12">
-                  <div className="text-center max-w-sm">
-                    <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Search className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">DRM Belum Diajukan</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Ajukan dokumen desain untuk mendapatkan persetujuan (DRM) sebelum tahap implementasi dimulai.</p>
-                    <Button><Plus className="w-4 h-4 mr-2" />Ajukan Review DRM</Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold">DRM Plan (Existing/Planned)</h2>
+                  <p className="text-[11pt] text-muted-foreground">Rencana Design Review Meeting dan target penyelesaian pekerjaan.</p>
+                </div>
+                <CumulativeProgressTable
+                  items={designatorItems}
+                  onUpdateItems={handleUpdateDesignatorItems}
+                  projectName={project?.name}
+                  contractNo={project?.contractNo}
+                  projectStartDate={project?.startDate}
+                  projectEndDate={project?.targetDate}
+                  requireReasonForAdd={false}
+                />
+              </div>
             </TabsContent>
             <TabsContent value="baselines">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
@@ -1000,7 +1061,7 @@ export default function ProjectDetailPage() {
                       <Lock className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Baseline Belum Dikunci</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Kunci BOQ dan rute acuan agar tidak dapat diubah tanpa persetujuan khusus, setelah DRM disetujui.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Kunci BOQ dan rute acuan agar tidak dapat diubah tanpa persetujuan khusus, setelah DRM disetujui.</p>
                     <Button variant="secondary" disabled><Lock className="w-4 h-4 mr-2" />Kunci Baseline</Button>
                   </div>
                 </CardContent>
@@ -1039,61 +1100,61 @@ export default function ProjectDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/20 p-4 border rounded-md">
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Nomor Kontrak</Label>
-                        <div className="col-span-2 text-sm font-semibold">{project.contractNo || '-'}</div>
+                        <Label className="text-[10pt] text-muted-foreground">Nomor Kontrak</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">{project.contractNo || '-'}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Ruas/Link</Label>
-                        <div className="col-span-2 text-sm font-semibold">{project.name || '-'}</div>
+                        <Label className="text-[10pt] text-muted-foreground">Ruas/Link</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">{project.name || '-'}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Witel</Label>
-                        <div className="col-span-2 text-sm font-semibold">WITEL SUMBAGSEL</div>
+                        <Label className="text-[10pt] text-muted-foreground">Witel</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">WITEL SUMBAGSEL</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Mitra Pelaksana</Label>
-                        <div className="col-span-2 text-sm font-semibold">PT. MITRA AKSES INSANI</div>
+                        <Label className="text-[10pt] text-muted-foreground">Mitra Pelaksana</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">PT. MITRA AKSES INSANI</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Jumlah Tenaga Kerja</Label>
-                        <div className="col-span-2 text-sm font-semibold">26 Orang</div>
+                        <Label className="text-[10pt] text-muted-foreground">Jumlah Tenaga Kerja</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">26 Orang</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Jumlah Alat Berat</Label>
-                        <div className="col-span-2 text-sm font-semibold">-</div>
+                        <Label className="text-[10pt] text-muted-foreground">Jumlah Alat Berat</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">-</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Hujan</Label>
-                        <div className="col-span-2 text-sm font-semibold">CERAH</div>
+                        <Label className="text-[10pt] text-muted-foreground">Hujan</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">CERAH</div>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Tanggal Update</Label>
-                        <div className="col-span-2 text-sm font-semibold">1-Sep-2026</div>
+                        <Label className="text-[10pt] text-muted-foreground">Tanggal Update</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">1-Sep-2026</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Minggu Ke</Label>
-                        <div className="col-span-2 text-sm font-semibold">1</div>
+                        <Label className="text-[10pt] text-muted-foreground">Minggu Ke</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">1</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Mulai Kerja</Label>
-                        <div className="col-span-2 text-sm font-semibold">22-Okt-2025</div>
+                        <Label className="text-[10pt] text-muted-foreground">Mulai Kerja</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">22-Okt-2025</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">TOC Akhir</Label>
-                        <div className="col-span-2 text-sm font-semibold">-</div>
+                        <Label className="text-[10pt] text-muted-foreground">TOC Akhir</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">-</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
-                        <Label className="text-sm text-muted-foreground">Sisa Hari Kalender</Label>
-                        <div className="col-span-2 text-sm font-semibold">-46266</div>
+                        <Label className="text-[10pt] text-muted-foreground">Sisa Hari Kalender</Label>
+                        <div className="col-span-2 text-[10pt] font-semibold">-46266</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Table Rekapitulasi */}
                   <div className="mt-6 overflow-x-auto w-full">
-                    <Table className="text-sm whitespace-nowrap">
+                    <Table className="text-[10pt] whitespace-nowrap">
                       <TableHeader className="bg-muted/30">
                         <TableRow>
                           <TableHead rowSpan={2} className="text-left border-r align-middle font-semibold text-foreground px-4">
@@ -1105,13 +1166,13 @@ export default function ProjectDetailPage() {
                           </TableHead>
                         </TableRow>
                         <TableRow>
-                          <TableHead className="text-center text-sm border-r px-4">Volume Kemarin</TableHead>
-                          <TableHead className="text-center text-sm border-r px-4">Satuan</TableHead>
-                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Rencana Hari Ini</TableHead>
-                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Volume Hari Ini</TableHead>
-                          <TableHead className="text-center text-sm border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Satuan</TableHead>
-                          <TableHead className="text-center text-sm border-r px-4">Volume Sekarang</TableHead>
-                          <TableHead className="text-center text-sm border-r px-4">Volume BOQ</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r px-4">Volume Kemarin</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Rencana Hari Ini</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Volume Hari Ini</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r px-4">Volume Sekarang</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r px-4">Volume BOQ</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1135,78 +1196,41 @@ export default function ProjectDetailPage() {
                   {/* Kendala & Solusi */}
                   <div className="space-y-3 pt-2">
                     <div className="grid grid-cols-[100px_1fr] items-start gap-2 border-t pt-4">
-                      <Label className="text-sm font-semibold text-muted-foreground mt-1">Kendala</Label>
-                      <div className="text-sm leading-relaxed">-</div>
+                      <Label className="text-[10pt] font-semibold text-muted-foreground mt-1">Kendala</Label>
+                      <div className="text-[10pt] leading-relaxed">-</div>
                     </div>
                     <div className="grid grid-cols-[100px_1fr] items-start gap-2">
-                      <Label className="text-sm font-semibold text-muted-foreground mt-1">Solusi</Label>
-                      <div className="text-sm leading-relaxed">-</div>
+                      <Label className="text-[10pt] font-semibold text-muted-foreground mt-1">Solusi</Label>
+                      <div className="text-[10pt] leading-relaxed">-</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="progress">
-              <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-                <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Progress Pekerjaan</CardTitle>
-                    <CardDescription>Listing dan input progress harian (Tarik Kabel, Tanam Tiang, dsb).</CardDescription>
-                  </div>
-                  <Button size="sm"><Plus className="w-4 h-4 mr-2" />Tambah Progress</Button>
-                </CardHeader>
-                <CardContent className="p-0 [&_div[data-slot=table-container]]:border-0 [&_div[data-slot=table-container]]:rounded-none">
-                  <div className="overflow-x-auto">
-                    <Table className="text-sm whitespace-nowrap">
-                      <TableHeader className="bg-muted/30">
-                        <TableRow>
-                          <TableHead className="font-semibold text-foreground px-4">TANGGAL</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">ID PROJECT</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">PROJECT NAME</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">DESIGNATOR</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4 text-right">VOLUME</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">SATUAN</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">ALAT KERJA</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4 text-right">JUMLAH TENAGA</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">MANDOR</TableHead>
-                          <TableHead className="font-semibold text-foreground px-4">SPAN</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '398', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '1.200', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '1.300', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '16', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'AC-OF-SM-ADSS-24D', vol: '700', unit: 'meter', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '12', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '6', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                          { date: '01/09/26', id: 'ID009', name: 'TJB002', desig: 'PU-S7.0-140', vol: '7', unit: 'btg', alat: 'Manual', tenaga: '20', mandor: 'Jagar', span: 'JT01 - JT02' },
-                        ].map((row, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="px-4">{row.date}</TableCell>
-                            <TableCell className="px-4">{row.id}</TableCell>
-                            <TableCell className="px-4">{row.name}</TableCell>
-                            <TableCell className="px-4"><Badge variant="secondary" className="font-mono text-xs">{row.desig}</Badge></TableCell>
-                            <TableCell className="px-4 text-right font-medium">{row.vol}</TableCell>
-                            <TableCell className="px-4 text-muted-foreground">{row.unit}</TableCell>
-                            <TableCell className="px-4">{row.alat}</TableCell>
-                            <TableCell className="px-4 text-right">{row.tenaga}</TableCell>
-                            <TableCell className="px-4">{row.mandor}</TableCell>
-                            <TableCell className="px-4">{row.span}</TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Edit className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold">Progress Pekerjaan (S-Curve & Actuals)</h2>
+                  <p className="text-[10pt] text-muted-foreground">Kurva-S dari Planned DRM vs Actual Progress.</p>
+                </div>
+
+                <SCurveChart 
+                  data={sCurveData}
+                  targetPercent={progressMetrics.targetPercent}
+                  actualPercent={progressMetrics.actualPercent}
+                  deviation={progressMetrics.deviation}
+                />
+                
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">
+                    Detail Progress per Designator
+                  </h3>
+                  <CumulativeProgressTable
+                    items={designatorItems}
+                    onUpdateItems={handleUpdateDesignatorItems}
+                  />
+                </div>
+              </div>
             </TabsContent>
             <TabsContent value="evidence">
               <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
@@ -1217,7 +1241,7 @@ export default function ProjectDetailPage() {
                       <Camera className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Vault Kosong</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Galeri foto dan dokumentasi pekerjaan lapangan (galian, penarikan kabel) belum diunggah.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Galeri foto dan dokumentasi pekerjaan lapangan (galian, penarikan kabel) belum diunggah.</p>
                     <Button><Upload className="w-4 h-4 mr-2" />Upload Dokumentasi</Button>
                   </div>
                 </CardContent>
@@ -1232,7 +1256,7 @@ export default function ProjectDetailPage() {
                       <AlertTriangle className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Tidak Ada Issue Aktif</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Pencatatan kendala (issue log) dan mitigasi risiko proyek sedang bersih.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Pencatatan kendala (issue log) dan mitigasi risiko proyek sedang bersih.</p>
                     <Button variant="outline"><Plus className="w-4 h-4 mr-2" />Laporkan Kendala Baru</Button>
                   </div>
                 </CardContent>
@@ -1257,7 +1281,7 @@ export default function ProjectDetailPage() {
                       <Zap className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Hasil Test Belum Tersedia</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Unggah hasil pengetesan kabel optik dan validasi redaman untuk direview.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Unggah hasil pengetesan kabel optik dan validasi redaman untuk direview.</p>
                     <Button><Upload className="w-4 h-4 mr-2" />Upload Laporan OTDR</Button>
                   </div>
                 </CardContent>
@@ -1272,7 +1296,7 @@ export default function ProjectDetailPage() {
                       <Wrench className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Tidak Ada Defect</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Daftar perbaikan minor (punch list) saat ini kosong.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Daftar perbaikan minor (punch list) saat ini kosong.</p>
                     <Button variant="outline"><Plus className="w-4 h-4 mr-2" />Catat Defect Baru</Button>
                   </div>
                 </CardContent>
@@ -1287,7 +1311,7 @@ export default function ProjectDetailPage() {
                       <FileCheck2 className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">BA UT Belum Dibuat</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Mulai proses persetujuan Berita Acara Uji Terima secara digital.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Mulai proses persetujuan Berita Acara Uji Terima secara digital.</p>
                     <Button><Plus className="w-4 h-4 mr-2" />Buat Draft BA UT</Button>
                   </div>
                 </CardContent>
@@ -1312,7 +1336,7 @@ export default function ProjectDetailPage() {
                       <Book className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Dokumen ABD Belum Ada</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Unggah dokumen As-Built Drawing (ABD) final untuk diserahkan ke operasional.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Unggah dokumen As-Built Drawing (ABD) final untuk diserahkan ke operasional.</p>
                     <Button><Upload className="w-4 h-4 mr-2" />Upload Dokumen ABD</Button>
                   </div>
                 </CardContent>
@@ -1327,7 +1351,7 @@ export default function ProjectDetailPage() {
                       <Database className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Aset Belum Tercatat</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Catat aset jaringan baru yang telah terbangun untuk disinkronisasi ke Master Data.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Catat aset jaringan baru yang telah terbangun untuk disinkronisasi ke Master Data.</p>
                     <Button><Plus className="w-4 h-4 mr-2" />Sinkronisasi Aset</Button>
                   </div>
                 </CardContent>
@@ -1342,7 +1366,7 @@ export default function ProjectDetailPage() {
                       <CircleDollarSign className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">Laporan Margin Belum Tersedia</h3>
-                    <p className="text-muted-foreground text-sm mb-6">Laporan margin akhir akan membandingkan biaya RAB dengan pengeluaran aktual dari seluruh modul.</p>
+                    <p className="text-muted-foreground text-[10pt] mb-6">Laporan margin akhir akan membandingkan biaya RAB dengan pengeluaran aktual dari seluruh modul.</p>
                     <Button><PenTool className="w-4 h-4 mr-2" />Generate Laporan P&L</Button>
                   </div>
                 </CardContent>

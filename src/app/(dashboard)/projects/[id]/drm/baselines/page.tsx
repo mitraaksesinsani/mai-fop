@@ -34,7 +34,7 @@ export default function DRMBaselinesPage() {
                 </CardTitle>
                 <CardDescription className="text-xs mt-1">{b.remark}</CardDescription>
               </div>
-              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-300 font-mono text-xs">
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-300 text-xs">
                 {b.status}
               </Badge>
             </CardHeader>

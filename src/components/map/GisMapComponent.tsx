@@ -498,7 +498,7 @@ export default function GisMapComponent({
 
   if (!isMounted) {
     return (
-      <div className="w-full h-[650px] bg-muted/20 border border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs font-mono">
+      <div className="w-full h-[650px] bg-muted/20 border border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs ">
         <span>Initializing GIS Spatial Map Engine...</span>
       </div>
     );
@@ -623,7 +623,7 @@ export default function GisMapComponent({
                 <MapPin className="w-3.5 h-3.5 text-red-500" />
                 Target Search Coordinates
               </div>
-              <div className="font-mono text-[11px] text-slate-700 mt-1">
+              <div className="text-[11px] text-slate-700 mt-1">
                 Lat: {searchedLocation[0].toFixed(6)}, Lng: {searchedLocation[1].toFixed(6)}
               </div>
               <button
@@ -665,7 +665,7 @@ export default function GisMapComponent({
           </Button>
           <Badge
             variant={selectedProjectFilter === 'ALL' ? 'default' : 'outline'}
-            className="text-[10px] font-mono border-border uppercase"
+            className="text-[10px] border-border uppercase"
           >
             {selectedProjectFilter === 'ALL' ? 'Global Multi-Trace (All)' : selectedProjectFilter}
           </Badge>
@@ -809,7 +809,7 @@ export default function GisMapComponent({
       )}
 
       {/* MapCN Bottom Coordinate & Status Footer Bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/95 border-t border-border px-3 py-1.5 flex items-center justify-between text-[11px] font-mono text-muted-foreground shadow-none">
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-background/95 border-t border-border px-3 py-1.5 flex items-center justify-between text-[11px] text-muted-foreground shadow-none">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
             <Compass className="w-3 h-3 text-primary" />

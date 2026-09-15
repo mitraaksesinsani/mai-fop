@@ -150,7 +150,7 @@ export default function MaterialIssuePage() {
                       <TableRow key={mat.id}>
                         <TableCell>
                           <div className="font-semibold text-foreground">{mat.materialName}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{mat.materialCode}</div>
+                          <div className="text-xs text-muted-foreground ">{mat.materialCode}</div>
                         </TableCell>
                         <TableCell className="text-sm">{mat.category}</TableCell>
                         <TableCell>

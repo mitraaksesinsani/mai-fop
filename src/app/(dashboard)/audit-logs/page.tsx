@@ -97,13 +97,13 @@ export default function AuditLogsPage() {
               ) : (
                 filteredLogs.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="font-mono text-xs font-bold">{l.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{l.id}</TableCell>
                     <TableCell className="text-xs font-medium">{l.user}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{l.module}</Badge></TableCell>
                     <TableCell><Badge variant="secondary" className="text-[10px]">{l.action}</Badge></TableCell>
                     <TableCell className="text-xs text-muted-foreground line-through">{l.oldVal}</TableCell>
                     <TableCell className="text-xs font-semibold text-emerald-600">{l.newVal}</TableCell>
-                    <TableCell className="text-right text-[11px] text-muted-foreground font-mono">{l.timestamp}</TableCell>
+                    <TableCell className="text-right text-[11px] text-muted-foreground ">{l.timestamp}</TableCell>
                   </TableRow>
                 ))
               )}

@@ -56,12 +56,19 @@ cd mai-fop
 npm install
 ```
 
-### 3. Jalankan Development Server
+### 3. Konfigurasi Environment Variables (`.env.local`)
+Salin file template `.env.example` menjadi `.env.local`:
+```bash
+copy .env.example .env.local
+```
+Lalu isi kredensial Supabase (`NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY`) di dalam `.env.local`. Panduan lengkap setup perangkat baru dapat dilihat di [NEW-DEVICE-SETUP.md](./NEW-DEVICE-SETUP.md).
+
+### 4. Jalankan Development Server
 ```bash
 npm run dev
 ```
 Aplikasi kini dapat diakses melalui browser pada:  
-👉 **https://localhost:3002** (atau `http://localhost:3002`)
+👉 **http://localhost:3002**
 
 ---
 

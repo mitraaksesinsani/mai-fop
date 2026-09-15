@@ -92,7 +92,7 @@ export default function CommissioningDefectsPage() {
               ) : (
                 filteredPunch.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs font-bold">{p.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{p.id}</TableCell>
                     <TableCell className="text-xs font-medium">{p.desc}</TableCell>
                     <TableCell className="text-xs">{p.location}</TableCell>
                     <TableCell>

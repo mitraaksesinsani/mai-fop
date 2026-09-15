@@ -107,11 +107,11 @@ export default function SurveyKMLPage() {
               ) : (
                 filteredHistory.map((k) => (
                   <TableRow key={k.id}>
-                    <TableCell className="font-mono text-xs font-bold">{k.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{k.id}</TableCell>
                     <TableCell className="text-xs font-semibold text-primary">{k.fileName}</TableCell>
-                    <TableCell className="text-xs font-mono">{k.project}</TableCell>
+                    <TableCell className="text-xs ">{k.project}</TableCell>
                     <TableCell className="text-xs">{k.uploader}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-[10px] font-mono">{k.version}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px] ">{k.version}</Badge></TableCell>
                     <TableCell className="text-xs text-muted-foreground">{k.date}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={k.status === 'Approved' ? 'default' : 'secondary'} className="text-[10px]">

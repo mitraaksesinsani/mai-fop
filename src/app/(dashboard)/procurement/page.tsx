@@ -146,7 +146,7 @@ export default function ProcurementPage() {
   {filteredPos.slice((page - 1) * pageSize, page * pageSize).map((po) => (
   <TableRow key={po.id} className="hover:bg-muted/30">
   <TableCell className="font-medium text-primary">{po.poNumber}</TableCell>
-  <TableCell className="font-mono text-xs text-muted-foreground">{po.projectId || 'PRJ-2026-001'}</TableCell>
+  <TableCell className="text-xs text-muted-foreground">{po.projectId || 'PRJ-2026-001'}</TableCell>
  <TableCell>{po.vendor}</TableCell>
  <TableCell className="text-muted-foreground">
  {po.expectedDate ? formatDate(po.expectedDate) : '-'}

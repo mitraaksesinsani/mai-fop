@@ -49,19 +49,21 @@ function LoginForm() {
         <div className="w-full max-w-[400px] mx-auto flex flex-col">
           
           {/* Logo */}
-          <div className="mb-10 flex items-center justify-start">
-            <img src="/logo.png" alt="MAI Logo" className="w-24 h-24 object-contain" />
+          <div className="mb-8 flex items-center gap-3">
+            <img src="/images/logo-pt-mitra-akses-insani.png" alt="Proper Logo" className="w-16 h-16 object-contain" />
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 leading-none">Proper</h2>
+              <p className="text-xs text-slate-500 font-medium mt-1">Project Performance App</p>
+            </div>
           </div>
 
           {/* Headings */}
           <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
-            Sign in to MAI
+            Sign in to Proper
           </h1>
           <p className="text-[15px] text-slate-500 mb-8">
-            Manage your fiber optic infrastructure efficiently.
+            PT Mitra Akses Insani - Sistem Manajemen Performa Proyek.
           </p>
-
-
 
           {error && (
             <div className="flex items-center gap-2 p-3 mb-6 w-full rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
@@ -72,15 +74,17 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="w-full space-y-6">
             
-            {/* Email Input */}
+            {/* Username / Email Input */}
             <div className="space-y-2">
-              <Label className="text-[14px] font-semibold text-slate-900">Email address*</Label>
+              <Label className="text-[14px] font-semibold text-slate-900">Username atau Email*</Label>
               <Input
-                type="email"
-                placeholder="Enter your email address"
+                type="text"
+                placeholder="admin atau email@mai.co.id"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoCapitalize="none"
+                autoCorrect="off"
                 className="h-11 rounded-lg bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-slate-900 focus-visible:border-slate-900 transition-all text-[15px]"
               />
             </div>
@@ -95,7 +99,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 rounded-lg bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-slate-900 focus-visible:border-slate-900 transition-all text-[15px] pr-10 font-mono tracking-widest pt-1"
+                  className="h-11 rounded-lg bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-slate-900 focus-visible:border-slate-900 transition-all text-[15px] pr-10 tracking-widest pt-1"
                 />
                 <button
                   type="button"

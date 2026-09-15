@@ -106,7 +106,7 @@ export default function RoutePlanningPage() {
               ) : (
                 filteredSegments.map((seg) => (
                   <TableRow key={seg.id}>
-                    <TableCell className="font-mono text-xs font-bold">{seg.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{seg.id}</TableCell>
                     <TableCell className="text-xs font-medium">{seg.start}</TableCell>
                     <TableCell><ArrowRight className="w-3.5 h-3.5 text-muted-foreground" /></TableCell>
                     <TableCell className="text-xs font-medium">{seg.end}</TableCell>

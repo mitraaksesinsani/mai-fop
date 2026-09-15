@@ -7,10 +7,10 @@ const api = {
         data: {
           accessToken: 'dummy_token_123',
           user: {
-            id: '1',
-            email: 'admin@foplp.com',
-            name: 'Admin FOPLP',
-            role: 'Admin'
+            id: 'ec0a5b9c-1e1c-4c32-854d-6884336e58a7',
+            email: 'admin@mai.co.id',
+            name: 'Admin Proper',
+            role: 'ADMIN'
           }
         }
       };

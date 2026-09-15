@@ -96,7 +96,7 @@ export default function ClosingAssetsPage() {
               ) : (
                 filteredAssets.map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell className="font-mono text-xs font-bold">{a.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{a.id}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{a.type}</Badge></TableCell>
                     <TableCell className="text-xs font-medium">{a.spec}</TableCell>
                     <TableCell className="text-xs">{a.loc}</TableCell>

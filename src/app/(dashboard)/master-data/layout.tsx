@@ -10,14 +10,17 @@ export default function MasterDataLayout({ children }: { children: React.ReactNo
   const router = useRouter();
 
   useEffect(() => {
-    // If auth is loaded and there's a user, but they are NOT an Admin, kick them out
-    if (!isLoading && user && user.role !== 'ADMIN') {
-      router.replace('/');
+    // If auth is loaded and user exists, allow ADMIN or users with appropriate access
+    if (!isLoading && user) {
+      const userRole = user.role?.toUpperCase();
+      if (userRole && userRole !== 'ADMIN' && userRole !== 'OWNER' && userRole !== 'MANAGEMENT') {
+        router.replace('/');
+      }
     }
   }, [user, isLoading, router]);
 
-  // If loading or if it's a non-admin (while the redirect is happening), show loading or nothing
-  if (isLoading || (user && user.role !== 'ADMIN')) {
+  // If loading, show loader
+  if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center p-8">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -25,6 +28,5 @@ export default function MasterDataLayout({ children }: { children: React.ReactNo
     );
   }
 
-  // If we reach here, user is an ADMIN
   return <>{children}</>;
 }

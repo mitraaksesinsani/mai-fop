@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -13,12 +14,12 @@ import {
   HardHat,
   ClipboardCheck,
   CheckSquare2,
-  CircleDollarSign,
-  ShieldCheck,
-  History,
   Settings,
   ChevronRight,
   ArrowLeft,
+  Users,
+  Building2,
+  Database,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -43,7 +44,19 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
-const globalNavigation = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: any;
+  children?: { label: string; href: string }[];
+}
+
+interface NavGroup {
+  group: string;
+  items: NavItem[];
+}
+
+const globalNavigation: NavGroup[] = [
   {
     group: 'Main',
     items: [
@@ -70,40 +83,45 @@ const globalNavigation = [
     ]
   },
   {
-    group: 'Governance & Admin',
+    group: 'Master Data',
     items: [
-      {
-        label: 'Financial Control',
-        href: '/financial',
-        icon: CircleDollarSign,
-        children: [
-          { label: 'Profitability Control', href: '/financial' },
-          { label: 'Change Request (CR)', href: '/financial/change-requests' },
-        ],
-      },
-      {
-        label: 'Approvals Queue',
-        href: '/approvals',
-        icon: ShieldCheck,
-      },
-      {
-        label: 'Audit Trail',
-        href: '/audit-logs',
-        icon: History,
-      },
       {
         label: 'Master Data',
         href: '/master-data',
-        icon: FileSpreadsheet,
+        icon: Database,
         children: [
-          { label: 'Materials & Items', href: '/master-data/materials' },
-          { label: 'Vendors', href: '/master-data/vendors' },
-          { label: 'Warehouses', href: '/master-data/warehouses' },
-          { label: 'Customers', href: '/settings/customers' }, // Still in settings folder for now, but logical master data
+          {
+            label: 'Bowheer (Client)',
+            href: '/master-data/bowheer',
+          },
+          {
+            label: 'Users',
+            href: '/master-data/users',
+          },
+          {
+            label: 'Materials',
+            href: '/master-data/materials',
+          },
+          {
+            label: 'Vendors',
+            href: '/master-data/vendors',
+          },
+          {
+            label: 'Warehouses',
+            href: '/master-data/warehouses',
+          },
+          {
+            label: 'Designator',
+            href: '/master-data/designator',
+          },
+          {
+            label: 'Alat Kerja',
+            href: '/master-data/alat-kerja',
+          },
         ],
       },
-    ]
-  }
+    ],
+  },
 ];
 
 function NavCollapsible({ item, pathname, counts }: { item: any, pathname: string, counts: any }) {
@@ -116,7 +134,7 @@ function NavCollapsible({ item, pathname, counts }: { item: any, pathname: strin
 
   const getBadgeForLabel = (label: string) => {
     if (label === 'Approvals Queue' && counts.approvals > 0) {
-      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-[10px]">{counts.approvals}</Badge>;
+      return <Badge variant="destructive" className="ml-auto h-5 px-1.5 flex items-center justify-center text-xs">{counts.approvals}</Badge>;
     }
     return null;
   };
@@ -190,13 +208,20 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
     <Sidebar variant="sidebar" {...props}>
       <SidebarHeader className="border-b h-16 flex justify-center px-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg border border-primary/20">
-            F
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <Image
+              src="/images/logo-pt-mitra-akses-insani.png"
+              alt="Logo PT Mitra Akses Insani"
+              width={40}
+              height={40}
+              className="w-full h-full object-contain"
+              priority
+            />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-lg font-bold tracking-tight text-primary">FOPLP</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 font-medium max-w-[140px]">
-              Fiber Optic Project Platform
+            <h1 className="text-lg font-bold tracking-tight text-primary">Proper</h1>
+            <p className="text-xs text-muted-foreground leading-tight mt-0.5 font-medium">
+              Project Performance App
             </p>
           </div>
         </div>
@@ -205,7 +230,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
       <SidebarContent className="px-2 py-4">
         {currentNavigation.map((group) => (
           <SidebarGroup key={group.group}>
-            <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase px-3 mb-1">
+            <SidebarGroupLabel className="text-xs font-semibold tracking-wider text-muted-foreground/70 uppercase px-3 mb-1">
               {group.group}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -245,7 +270,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 text-xs text-muted-foreground text-center">
-        FOPLP Enterprise v1.0
+        Proper Enterprise v1.0
       </SidebarFooter>
     </Sidebar>
   );

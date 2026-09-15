@@ -99,7 +99,7 @@ export default function CommissioningAcceptancePage() {
               ) : (
                 filteredBaut.map((b) => (
                   <TableRow key={b.id}>
-                    <TableCell className="font-mono text-xs font-bold">{b.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{b.id}</TableCell>
                     <TableCell className="text-xs font-medium">{b.prj}</TableCell>
                     <TableCell className="text-xs font-semibold">{b.customer}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{b.date}</TableCell>

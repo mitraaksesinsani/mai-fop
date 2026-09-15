@@ -95,7 +95,7 @@ export default function TopBar() {
                     <Link href={notif.link} className="flex flex-col gap-1 p-4 w-full hover:bg-muted/50 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-sm leading-tight text-foreground">{notif.title}</p>
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(notif.createdAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -127,7 +127,7 @@ export default function TopBar() {
                 </Avatar>
                 <div className="text-left hidden sm:flex flex-col">
                   <span className="text-sm font-medium leading-none">{user?.name || 'User'}</span>
-                  <span className="text-[10px] text-muted-foreground mt-1">
+                  <span className="text-xs text-muted-foreground mt-1">
                     {getRoleLabel(user?.role || 'User')}
                   </span>
                 </div>
@@ -140,7 +140,7 @@ export default function TopBar() {
               <p className="text-sm font-medium leading-none mb-1">{user?.name}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
               <div className="mt-2">
-                <Badge variant="secondary" className="text-[10px] uppercase">
+                <Badge variant="secondary" className="text-xs uppercase">
                   {getRoleLabel(user?.role || 'User')}
                 </Badge>
               </div>

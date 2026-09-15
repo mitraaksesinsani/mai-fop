@@ -95,7 +95,7 @@ export default function ImplementationIssuesPage() {
               ) : (
                 filteredIssues.map((iss) => (
                   <TableRow key={iss.id}>
-                    <TableCell className="font-mono text-xs font-bold">{iss.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{iss.id}</TableCell>
                     <TableCell className="text-xs font-medium">{iss.desc}</TableCell>
                     <TableCell className="text-xs">{iss.location}</TableCell>
                     <TableCell>

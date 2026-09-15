@@ -97,8 +97,8 @@ export default function ChangeRequestsPage() {
               ) : (
                 filteredCRs.map((c) => (
                   <TableRow key={c.crNo}>
-                    <TableCell className="font-mono text-xs font-bold">{c.crNo}</TableCell>
-                    <TableCell className="text-xs font-mono">{c.prj}</TableCell>
+                    <TableCell className="text-xs font-bold">{c.crNo}</TableCell>
+                    <TableCell className="text-xs ">{c.prj}</TableCell>
                     <TableCell className="text-xs font-medium">{c.desc}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{c.reason}</TableCell>
                     <TableCell className="text-xs font-bold text-destructive">{c.costImpact}</TableCell>

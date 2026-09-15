@@ -42,7 +42,7 @@ export default function UsersSettingsPage() {
             <TableBody>
               {users.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-mono text-xs font-bold">{u.id}</TableCell>
+                  <TableCell className="text-xs font-bold">{u.id}</TableCell>
                   <TableCell className="text-xs font-semibold">{u.name}</TableCell>
                   <TableCell className="text-xs text-primary">{u.email}</TableCell>
                   <TableCell><Badge variant="outline" className="text-[10px]">{u.role}</Badge></TableCell>

@@ -97,11 +97,11 @@ export default function DRMPage() {
               ) : (
                 filteredDRMs.map((d) => (
                   <TableRow key={d.id}>
-                    <TableCell className="font-mono text-xs font-bold">{d.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{d.id}</TableCell>
                     <TableCell className="text-xs font-medium">{d.prj}</TableCell>
                     <TableCell className="text-xs">{d.date}</TableCell>
                     <TableCell className="text-xs">{d.location}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-[10px] font-mono">{d.boqStatus}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px] ">{d.boqStatus}</Badge></TableCell>
                     <TableCell className="text-xs font-semibold">{d.marginStatus}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={d.decision === 'Approved' ? 'default' : d.decision === 'Approved With Note' ? 'secondary' : 'destructive'}>

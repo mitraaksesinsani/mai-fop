@@ -70,7 +70,7 @@ export default function BOQManagementPage() {
         <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base font-semibold">Active BOQ Header: PRJ-2026-001 (Jakarta - Bandung)</CardTitle>
-            <CardDescription className="text-xs">Version Status: <Badge variant="secondary" className="ml-1 font-mono">{selectedVersion}</Badge></CardDescription>
+            <CardDescription className="text-xs">Version Status: <Badge variant="secondary" className="ml-1 ">{selectedVersion}</Badge></CardDescription>
           </div>
           <div className="flex items-center gap-2 max-w-md w-full">
             <div className="relative flex-1">
@@ -118,7 +118,7 @@ export default function BOQManagementPage() {
               ) : (
                 filteredItems.map((item) => (
                   <TableRow key={item.no}>
-                    <TableCell className="font-mono text-xs">{item.no}</TableCell>
+                    <TableCell className="text-xs">{item.no}</TableCell>
                     <TableCell>
                       <Badge variant={item.category === 'Material' ? 'default' : item.category === 'Civil Work' ? 'secondary' : 'outline'} className="text-[10px]">
                         {item.category}

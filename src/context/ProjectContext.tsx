@@ -17,6 +17,39 @@ export interface CommercialData {
   revenue: number;
 }
 
+export interface DRMItem {
+  id: string;
+  code: string;
+  description: string;
+  type: string;
+  unit: string;
+  volumeTarget: number;
+  weightPercent: number;
+}
+
+export interface DRMData {
+  documentNo: string;
+  approvalDate?: string;
+  status: 'Draft' | 'Approved' | 'Baselined';
+  reviewer?: string;
+  notes?: string;
+  items: DRMItem[];
+}
+
+export interface DailyProgressLog {
+  id: string;
+  date: string;
+  designatorCode: string;
+  description: string;
+  volume: number;
+  unit: string;
+  workTool?: string;
+  manpower?: number;
+  foreman?: string;
+  span?: string;
+  notes?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -33,6 +66,10 @@ export interface Project {
   boqItems?: BOQItem[];
   routeNotes?: string;
   commercial?: CommercialData;
+
+  // Implementation Baseline & Logs
+  drmData?: DRMData;
+  progressLogs?: DailyProgressLog[];
 }
 
 export const DEFAULT_PROJECTS: Project[] = [
@@ -113,14 +150,64 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setSelectedProjectIdState(savedId);
     }
     
-    // Fetch real data from Supabase via Prisma
+    // Fetch real data from Supabase
     const fetchRealData = async () => {
       setIsLoading(true);
       const res = await getProjects();
+      const isInitialized = typeof window !== 'undefined' && localStorage.getItem('nims_db_initialized') === 'true';
+
       if (res.success && res.data) {
-        setProjects(res.data as Project[]);
-        if (!savedId && res.data.length > 0) {
-          setSelectedProjectIdState(res.data[0].id);
+        if (res.data.length > 0) {
+          setProjects(res.data as Project[]);
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(res.data));
+          localStorage.setItem('nims_db_initialized', 'true');
+          if (!savedId && res.data.length > 0) {
+            setSelectedProjectIdState(res.data[0].id);
+          }
+        } else if (isInitialized) {
+          // If database is empty and user already interacted/deleted items, show empty
+          setProjects([]);
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify([]));
+        } else {
+          // First time launch: use local storage or default sample projects
+          const localSaved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+          if (localSaved) {
+            try {
+              const parsed = JSON.parse(localSaved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setProjects(parsed);
+                setIsLoading(false);
+                return;
+              }
+            } catch (e) {
+              // Ignore parse error
+            }
+          }
+          setProjects(DEFAULT_PROJECTS);
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(DEFAULT_PROJECTS));
+          localStorage.setItem('nims_db_initialized', 'true');
+          if (!savedId && DEFAULT_PROJECTS.length > 0) {
+            setSelectedProjectIdState(DEFAULT_PROJECTS[0].id);
+          }
+        }
+      } else {
+        // Fallback to local storage or initial sample projects
+        const localSaved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+        if (localSaved) {
+          try {
+            const parsed = JSON.parse(localSaved);
+            if (Array.isArray(parsed)) {
+              setProjects(parsed);
+              setIsLoading(false);
+              return;
+            }
+          } catch (e) {
+            // Ignore parse error
+          }
+        }
+        setProjects(DEFAULT_PROJECTS);
+        if (!savedId && DEFAULT_PROJECTS.length > 0) {
+          setSelectedProjectIdState(DEFAULT_PROJECTS[0].id);
         }
       }
       setIsLoading(false);
@@ -131,9 +218,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   // Save projects to localStorage whenever it changes (as backup cache)
   useEffect(() => {
-    if (projects.length > 0) {
-      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-    }
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
   }, [projects]);
 
   const setSelectedProjectId = (id: string) => {
@@ -142,8 +227,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   };
 
   const addProject = async (newProj: Project) => {
-    // Optimistic UI update
-    setProjects((prev) => [newProj, ...prev]);
+    // Optimistic UI update & immediate sync to localStorage
+    setProjects((prev) => {
+      const next = [newProj, ...prev];
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem('nims_db_initialized', 'true');
+      return next;
+    });
     setSelectedProjectId(newProj.id);
 
     // Save to Supabase
@@ -155,10 +245,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProject = async (id: string, updatedData: Partial<Project>) => {
-    // Optimistic UI update
-    setProjects((prev) =>
-      prev.map((proj) => (proj.id === id ? { ...proj, ...updatedData } : proj))
-    );
+    // Optimistic UI update & immediate sync to localStorage
+    setProjects((prev) => {
+      const next = prev.map((proj) => (proj.id === id ? { ...proj, ...updatedData } : proj));
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
     // Save to Supabase
     try {
@@ -169,11 +261,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProject = async (id: string) => {
-    // Optimistic UI update
-    setProjects((prev) => prev.filter((proj) => proj.id !== id));
+    // Optimistic UI update & immediate sync to localStorage
+    setProjects((prev) => {
+      const next = prev.filter((proj) => proj.id !== id);
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem('nims_db_initialized', 'true');
+      return next;
+    });
+
     if (selectedProjectId === id) {
-      const remaining = projects.filter((proj) => proj.id !== id);
-      setSelectedProjectId(remaining.length > 0 ? remaining[0].id : '');
+      setProjects((currentProjects) => {
+        const remaining = currentProjects.filter((proj) => proj.id !== id);
+        setSelectedProjectId(remaining.length > 0 ? remaining[0].id : '');
+        return currentProjects;
+      });
     }
     
     // Delete from Supabase
@@ -181,7 +282,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       await deleteProjectRecord(id);
     } catch (err) {
       console.error('Failed to delete project from database', err);
-      // Optional: Refresh projects list from server if deletion fails to restore state
     }
   };
 

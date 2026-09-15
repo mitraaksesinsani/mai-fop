@@ -98,10 +98,10 @@ export default function ImplementationEvidencePage() {
               ) : (
                 filteredEvidences.map((e) => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-mono text-xs font-bold">{e.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{e.id}</TableCell>
                     <TableCell className="text-xs font-medium">{e.activity}</TableCell>
-                    <TableCell className="text-xs font-mono text-primary">{e.file}</TableCell>
-                    <TableCell className="text-xs font-mono">{e.gps}</TableCell>
+                    <TableCell className="text-xs text-primary">{e.file}</TableCell>
+                    <TableCell className="text-xs ">{e.gps}</TableCell>
                     <TableCell className="text-[11px] text-muted-foreground">{e.timestamp}</TableCell>
                     <TableCell className="text-xs">{e.uploader}</TableCell>
                     <TableCell className="text-right">

@@ -37,7 +37,7 @@ import { COLOR_OPTIONS, ProjectKmlTrack, exportToKML } from '@/components/map/Gi
 const GisMapComponent = dynamic(() => import('@/components/map/GisMapComponent'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[650px] bg-muted/20 border border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs font-mono">
+    <div className="w-full h-[650px] bg-muted/20 border border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs ">
       <MapIcon className="w-6 h-6 animate-spin text-primary" />
       <span>Loading Google Earth Tree Layering Spatial Map (MapCN)...</span>
     </div>
@@ -177,7 +177,7 @@ export default function GISPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">GIS Multi-Project Spatial Platform</h1>
-            <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 font-mono">
+            <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 ">
               Google Earth Enterprise (GEE)
             </Badge>
           </div>
@@ -289,7 +289,7 @@ export default function GISPage() {
               </div>
 
               {Object.keys(groupedProjects).length === 0 ? (
-                <div className="text-center py-6 text-xs text-muted-foreground font-mono">
+                <div className="text-center py-6 text-xs text-muted-foreground ">
                   No matching project or KML track found.
                 </div>
               ) : (

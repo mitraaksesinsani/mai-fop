@@ -93,11 +93,11 @@ export default function SurveyPermitsPage() {
               ) : (
                 filteredPermits.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs font-bold">{p.id}</TableCell>
+                    <TableCell className="text-xs font-bold">{p.id}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{p.areaType}</Badge></TableCell>
                     <TableCell className="text-xs font-medium">{p.authority}</TableCell>
                     <TableCell className="text-xs">{p.location}</TableCell>
-                    <TableCell className="text-xs font-mono text-primary flex items-center gap-1">
+                    <TableCell className="text-xs text-primary flex items-center gap-1">
                       <FileText className="w-3.5 h-3.5" /> {p.doc}
                     </TableCell>
                     <TableCell className="text-right">
