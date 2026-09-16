@@ -67,8 +67,21 @@ export async function getProjects() {
   }
 }
 
+import { readServerDb, writeServerDb } from '@/lib/serverDb';
+
 export async function deleteProjectRecord(id: string) {
   try {
+    // Sinkronkan ke local server database (data/db.json)
+    try {
+      const db = await readServerDb();
+      if (Array.isArray(db.projects)) {
+        db.projects = db.projects.filter((p: any) => p.id !== id && p.projectCode !== id);
+        await writeServerDb(db);
+      }
+    } catch (dbErr) {
+      console.warn('Notice syncing delete to serverDb:', dbErr);
+    }
+
     if (!isSupabaseConfigured || !supabase) {
       return { success: true };
     }
@@ -94,6 +107,37 @@ export async function deleteProjectRecord(id: string) {
 
 export async function addProjectRecord(data: any) {
   try {
+    // Sinkronkan ke local server database (data/db.json)
+    try {
+      const db = await readServerDb();
+      if (!Array.isArray(db.projects)) {
+        db.projects = [];
+      }
+      const existingIdx = db.projects.findIndex((p: any) => p.id === data.id || p.projectCode === data.contractNo);
+      const newLocalEntry = {
+        id: data.id,
+        projectName: data.name,
+        customer: data.customer,
+        region: data.location,
+        startDate: data.startDate ? new Date(data.startDate).toISOString() : new Date().toISOString(),
+        endDate: data.targetDate ? new Date(data.targetDate).toISOString() : new Date().toISOString(),
+        pic: data.manager,
+        status: (data.status || 'PLANNING').toUpperCase(),
+        projectType: data.type,
+        projectCode: data.contractNo || data.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      if (existingIdx >= 0) {
+        db.projects[existingIdx] = { ...db.projects[existingIdx], ...newLocalEntry };
+      } else {
+        db.projects.unshift(newLocalEntry);
+      }
+      await writeServerDb(db);
+    } catch (dbErr) {
+      console.warn('Notice syncing add to serverDb:', dbErr);
+    }
+
     if (!isSupabaseConfigured || !supabase) {
       return { success: true, data };
     }
@@ -131,6 +175,32 @@ export async function addProjectRecord(data: any) {
 
 export async function updateProjectRecord(id: string, data: any) {
   try {
+    // Sinkronkan ke local server database (data/db.json)
+    try {
+      const db = await readServerDb();
+      if (Array.isArray(db.projects)) {
+        const idx = db.projects.findIndex((p: any) => p.id === id || p.projectCode === id);
+        if (idx >= 0) {
+          db.projects[idx] = {
+            ...db.projects[idx],
+            ...(data.name && { projectName: data.name }),
+            ...(data.customer && { customer: data.customer }),
+            ...(data.location && { region: data.location }),
+            ...(data.startDate && { startDate: new Date(data.startDate).toISOString() }),
+            ...(data.targetDate && { endDate: new Date(data.targetDate).toISOString() }),
+            ...(data.manager && { pic: data.manager }),
+            ...(data.status && { status: String(data.status).toUpperCase() }),
+            ...(data.type && { projectType: data.type }),
+            ...(data.contractNo && { projectCode: data.contractNo }),
+            updatedAt: new Date().toISOString(),
+          };
+          await writeServerDb(db);
+        }
+      }
+    } catch (dbErr) {
+      console.warn('Notice syncing update to serverDb:', dbErr);
+    }
+
     if (!isSupabaseConfigured || !supabase) {
       return { success: true, data: { id, ...data } };
     }

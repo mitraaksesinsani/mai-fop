@@ -1,55 +1,118 @@
 {
   "projects": [
     {
-      "id": "017a33c0-0662-4b53-bc1e-143643287c2c",
-      "projectName": "sdsd",
-      "customer": "sdsd",
-      "region": "sdsd",
-      "startDate": "2026-08-07T00:00:00.000Z",
-      "endDate": null,
-      "pic": "sdsdsd",
+      "id": "1d7b24bc-50b5-4993-a4f2-cd2f835cd856",
+      "projectName": "0001-YOI",
+      "customer": "PT Telkomsel Tbk",
+      "region": "DKI Jakarta",
+      "startDate": "2026-09-16T00:00:00.000Z",
+      "endDate": "2026-12-15T00:00:00.000Z",
+      "pic": "Budi Santoso, S.T.",
       "status": "PLANNING",
-      "createdAt": "2026-08-04T08:06:59.198Z",
-      "updatedAt": "2026-08-04T08:06:59.198Z"
-    },
-    {
-      "id": "4c784875-d9dd-4e3d-ba06-51d3ff883de1",
-      "projectName": "qqqq",
-      "customer": "qwqw",
-      "region": "qwwqw",
-      "startDate": "2026-08-20T00:00:00.000Z",
-      "endDate": null,
-      "pic": "wqwqww",
-      "status": "PLANNING",
-      "createdAt": "2026-08-04T08:28:13.378Z",
-      "updatedAt": "2026-08-04T08:28:13.378Z"
+      "projectType": "Backbone Fiber",
+      "projectCode": "0001",
+      "createdAt": "2026-09-16T06:45:05.662Z",
+      "updatedAt": "2026-09-16T06:45:05.662Z"
     }
   ],
   "materialMasters": [
     {
-      "id": "4604beaf-0c17-4775-9089-3e13093680d7",
-      "materialCode": "CBL 01",
-      "materialName": "CBL 0112313",
-      "category": "Cable",
-      "specification": "Cable aja",
+      "id": "mat-1",
+      "materialCode": "CBL-FO-ADSS-24C",
+      "materialName": "Kabel Fiber Optik ADSS 24 Core",
+      "category": "CABLE",
+      "specification": "Single Mode, G.652D, Span 100m",
       "unit": "Meter",
-      "minimumStock": 0,
+      "minimumStock": 1000,
       "isActive": true,
-      "createdAt": "2026-08-04T08:07:41.247Z",
-      "updatedAt": "2026-08-04T08:07:41.247Z"
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
     },
     {
-      "id": "ff0ac387-a8fe-4f84-9802-5b7c4a5b72ea",
-      "materialCode": "qww",
-      "materialName": "qwqw",
-      "category": "qwqw",
-      "specification": "qwqwwww",
-      "unit": "qwww",
-      "minimumStock": 0,
+      "id": "mat-2",
+      "materialCode": "CBL-FO-DUCT-48C",
+      "materialName": "Kabel Fiber Optik Duct 48 Core",
+      "category": "CABLE",
+      "specification": "Single Mode, G.652D",
+      "unit": "Meter",
+      "minimumStock": 500,
       "isActive": true,
-      "createdAt": "2026-08-04T08:45:41.057Z",
-      "updatedAt": "2026-08-04T08:45:41.057Z"
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-3",
+      "materialCode": "TIANG-BESI-7M",
+      "materialName": "Tiang Besi 7 Meter 140 daN",
+      "category": "OSP",
+      "specification": "Hot Dip Galvanized",
+      "unit": "batang",
+      "minimumStock": 50,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-4",
+      "materialCode": "TIANG-BESI-9M",
+      "materialName": "Tiang Besi 9 Meter 200 daN",
+      "category": "OSP",
+      "specification": "Hot Dip Galvanized",
+      "unit": "batang",
+      "minimumStock": 30,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-5",
+      "materialCode": "FOSC-INLINE-48C",
+      "materialName": "Closure Splice Inline FO 48 Core",
+      "category": "ACCESSORIES",
+      "specification": "Waterproof IP68, 4 Tray @12 Core",
+      "unit": "pcs",
+      "minimumStock": 40,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-6",
+      "materialCode": "ODC-PRECON-144C",
+      "materialName": "Optical Distribution Cabinet 144 Core",
+      "category": "ODC",
+      "specification": "Outdoor IP65 Powder Coated",
+      "unit": "unit",
+      "minimumStock": 10,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-7",
+      "materialCode": "PRECAST-MH-TYP-B",
+      "materialName": "Precast Manhole Beton Type B",
+      "category": "CIVIL",
+      "specification": "Ukuran 200x120x150cm K-350",
+      "unit": "unit",
+      "minimumStock": 15,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-8",
+      "materialCode": "HDPE-SUBDUCT-32",
+      "materialName": "Subduct Pipa HDPE 32/28 mm",
+      "category": "OSP",
+      "specification": "Roll @500 Meter Warna Orange",
+      "unit": "Meter",
+      "minimumStock": 2000,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
     }
+  ],
   "users": [
     {
       "id": "1",
@@ -62,5 +125,149 @@
   "purchaseOrders": [],
   "deliveryOrders": [],
   "warehouses": [],
-  "transfers": []
+  "transfers": [],
+  "_initialized": {
+    "bowheers": true,
+    "designators": true,
+    "alatKerja": true,
+    "vendors": true,
+    "warehouses": true,
+    "materials": true,
+    "systemUsers": true
+  },
+  "bowheers": [],
+  "designators": [],
+  "alatKerja": [],
+  "vendors": [],
+  "materials": [
+    {
+      "id": "mat-1",
+      "materialCode": "CBL-FO-ADSS-24C",
+      "materialName": "Kabel Fiber Optik ADSS 24 Core",
+      "category": "CABLE",
+      "specification": "Single Mode, G.652D, Span 100m",
+      "unit": "Meter",
+      "minimumStock": 1000,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-2",
+      "materialCode": "CBL-FO-DUCT-48C",
+      "materialName": "Kabel Fiber Optik Duct 48 Core",
+      "category": "CABLE",
+      "specification": "Single Mode, G.652D",
+      "unit": "Meter",
+      "minimumStock": 500,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-3",
+      "materialCode": "TIANG-BESI-7M",
+      "materialName": "Tiang Besi 7 Meter 140 daN",
+      "category": "OSP",
+      "specification": "Hot Dip Galvanized",
+      "unit": "batang",
+      "minimumStock": 50,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-4",
+      "materialCode": "TIANG-BESI-9M",
+      "materialName": "Tiang Besi 9 Meter 200 daN",
+      "category": "OSP",
+      "specification": "Hot Dip Galvanized",
+      "unit": "batang",
+      "minimumStock": 30,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-5",
+      "materialCode": "FOSC-INLINE-48C",
+      "materialName": "Closure Splice Inline FO 48 Core",
+      "category": "ACCESSORIES",
+      "specification": "Waterproof IP68, 4 Tray @12 Core",
+      "unit": "pcs",
+      "minimumStock": 40,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-6",
+      "materialCode": "ODC-PRECON-144C",
+      "materialName": "Optical Distribution Cabinet 144 Core",
+      "category": "ODC",
+      "specification": "Outdoor IP65 Powder Coated",
+      "unit": "unit",
+      "minimumStock": 10,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-7",
+      "materialCode": "PRECAST-MH-TYP-B",
+      "materialName": "Precast Manhole Beton Type B",
+      "category": "CIVIL",
+      "specification": "Ukuran 200x120x150cm K-350",
+      "unit": "unit",
+      "minimumStock": 15,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    },
+    {
+      "id": "mat-8",
+      "materialCode": "HDPE-SUBDUCT-32",
+      "materialName": "Subduct Pipa HDPE 32/28 mm",
+      "category": "OSP",
+      "specification": "Roll @500 Meter Warna Orange",
+      "unit": "Meter",
+      "minimumStock": 2000,
+      "isActive": true,
+      "createdAt": "2026-01-01T08:00:00.000Z",
+      "updatedAt": "2026-01-01T08:00:00.000Z"
+    }
+  ],
+  "systemUsers": [
+    {
+      "id": "usr-1789548217090-wsf2",
+      "username": "testing",
+      "fullName": "Testing",
+      "password": "testing123321",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "email": "testing@mai.co.id",
+      "createdAt": "2026-09-16T08:43:37.090Z"
+    },
+    {
+      "id": "ec0a5b9c-1e1c-4c32-854d-6884336e58a7",
+      "username": "admin",
+      "fullName": "Admin",
+      "password": "admin123",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "email": "admin@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z",
+      "updatedAt": "2026-09-16T08:44:59.477Z"
+    },
+    {
+      "id": "7acef50a-f9df-4ab2-bc6b-d5f9ceda7d02",
+      "username": "owner",
+      "fullName": "Direktur Utama (Owner)",
+      "password": "owner123",
+      "role": "OWNER",
+      "status": "ACTIVE",
+      "email": "owner@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z"
+    }
+  ]
 }

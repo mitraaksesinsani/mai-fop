@@ -188,7 +188,25 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
   const { user } = useAuth();
   const [counts, setCounts] = React.useState<any>({ approvals: 0 });
 
-  const currentNavigation = globalNavigation;
+  const isOwner = user?.role?.toUpperCase() === 'OWNER';
+
+  const currentNavigation = React.useMemo(() => {
+    if (isOwner) {
+      return [
+        {
+          group: 'Main',
+          items: [
+            {
+              label: 'Dashboard',
+              href: '/',
+              icon: LayoutDashboard,
+            },
+          ],
+        },
+      ];
+    }
+    return globalNavigation;
+  }, [isOwner]);
 
   React.useEffect(() => {
     const fetchCounts = async () => {

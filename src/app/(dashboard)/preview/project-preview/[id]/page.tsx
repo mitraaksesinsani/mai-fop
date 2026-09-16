@@ -46,7 +46,19 @@ export default function ProjectPreviewProgressPage() {
     status: 'Implementation',
   };
 
-  const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>(DEFAULT_DESIGNATOR_ITEMS);
+  const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>([]);
+
+  React.useEffect(() => {
+    if (!decodedId) return;
+    try {
+      const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
+      if (saved) {
+        setDesignatorItems(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [decodedId]);
 
   // Kalkulasi dinamis Kurva S dan Progress Kumulatif
   const progressMetrics = calculateOverallProjectProgress(designatorItems);

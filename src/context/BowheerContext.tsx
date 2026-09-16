@@ -1,6 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  getBowheersAction,
+  addBowheerAction,
+  updateBowheerAction,
+  deleteBowheerAction,
+} from '@/app/actions/masterData';
 
 export type BowheerCategory =
   | 'Telekomunikasi'
@@ -141,6 +147,7 @@ interface BowheerContextType {
   deleteBowheer: (id: string) => void;
   getBowheerById: (id: string) => Bowheer | undefined;
   getBowheerByName: (name: string) => Bowheer | undefined;
+  refreshBowheers: () => Promise<void>;
 }
 
 const BowheerContext = createContext<BowheerContextType | undefined>(undefined);
@@ -149,28 +156,60 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
   const [bowheers, setBowheers] = useState<Bowheer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize from LocalStorage
-  useEffect(() => {
+  const refreshBowheers = async () => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setBowheers(parsed);
-          setIsLoading(false);
-          return;
-        }
+      const res = await getBowheersAction();
+      if (res.success && res.data) {
+        setBowheers(res.data as Bowheer[]);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(res.data));
+        } catch {}
       }
-    } catch (e) {
-      console.error('Failed to read bowheer from localStorage:', e);
+    } catch (err) {
+      console.error('Failed to refresh bowheers from server:', err);
     }
+  };
 
-    // Default fallback
-    setBowheers(INITIAL_BOWHEERS);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_BOWHEERS));
-    } catch (e) { }
-    setIsLoading(false);
+  // Inisialisasi data dari Server Database
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Ambil data langsung dari server database
+        const res = await getBowheersAction();
+        if (isMounted) {
+          if (res.success && res.data) {
+            setBowheers(res.data as Bowheer[]);
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(res.data));
+            } catch {}
+          } else {
+            // Fallback ke localStorage hanya jika server error
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+              setBowheers(JSON.parse(saved));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load bowheers:', err);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            setBowheers(JSON.parse(saved));
+          } catch {}
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const saveToStorage = (data: Bowheer[]) => {
@@ -182,9 +221,10 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
   };
 
   const addBowheer = (data: Omit<Bowheer, 'id' | 'createdAt'>) => {
+    const tempId = `bwh-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const newRecord: Bowheer = {
       ...data,
-      id: `bwh-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: tempId,
       createdAt: new Date().toISOString(),
     };
 
@@ -192,6 +232,15 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
       const next = [newRecord, ...prev];
       saveToStorage(next);
       return next;
+    });
+
+    // Simpan permanen ke database server
+    addBowheerAction(data).then((res) => {
+      if (res.success && res.data) {
+        setBowheers((prev) =>
+          prev.map((item) => (item.id === tempId ? (res.data as Bowheer) : item))
+        );
+      }
     });
 
     return newRecord;
@@ -203,6 +252,9 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
       saveToStorage(next);
       return next;
     });
+
+    // Simpan pembaruan ke database server
+    updateBowheerAction(id, data);
   };
 
   const deleteBowheer = (id: string) => {
@@ -211,6 +263,9 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
       saveToStorage(next);
       return next;
     });
+
+    // Hapus permanen dari database server
+    deleteBowheerAction(id);
   };
 
   const getBowheerById = (id: string) => {
@@ -239,6 +294,7 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
         deleteBowheer,
         getBowheerById,
         getBowheerByName,
+        refreshBowheers,
       }}
     >
       {children}

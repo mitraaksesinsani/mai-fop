@@ -1,21 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
- Dialog,
- DialogContent,
- DialogDescription,
- DialogHeader,
- DialogTitle,
- DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { ExcelImportExport } from '@/components/ExcelImportExport';
+import { DataTablePagination } from '@/components/shared/DataTablePagination';
+import {
+  exportToExcel,
+  downloadExcelTemplate,
+  parseImportFile,
+  ColumnDefinition,
+} from '@/lib/masterDataExportImport';
+import {
+  getAlatKerjaAction,
+  addAlatKerjaAction,
+  updateAlatKerjaAction,
+  deleteAlatKerjaAction,
+  batchAddAlatKerjaAction,
+} from '@/app/actions/masterData';
 
 export const MASTER_ALAT_KERJA_DATA = [
   { id: '1', code: 'AL-001', name: 'Manual (Tenaga Manusia)', category: 'Manual' },
@@ -27,24 +43,121 @@ export const MASTER_ALAT_KERJA_DATA = [
 
 const KATEGORI_ALAT = ['Manual', 'Alat Berat', 'Alat Khusus', 'Alat Ukur', 'Pendukung'];
 
+const EXCEL_COLUMNS: ColumnDefinition[] = [
+  { key: 'code', label: 'Kode Alat', required: true },
+  { key: 'name', label: 'Nama Alat Kerja', required: true },
+  { key: 'category', label: 'Kategori', required: true },
+];
+
 export default function AlatKerjaPage() {
-  const [data, setData] = useState(MASTER_ALAT_KERJA_DATA);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('code-asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    category: ''
+    category: '',
   });
 
-  const filteredData = data.filter(item => 
-    item.code.toLowerCase().includes(search.toLowerCase()) ||
-    item.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const res = await getAlatKerjaAction();
+      if (res.success && res.data) {
+        setData(res.data);
+      } else {
+        setData([]);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal memuat data alat kerja');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Filter & Sort
+  const filteredAndSortedData = useMemo(() => {
+    let result = data.filter((item) => {
+      const matchSearch =
+        item.code?.toLowerCase().includes(search.toLowerCase()) ||
+        item.name?.toLowerCase().includes(search.toLowerCase());
+      const matchCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
+      return matchSearch && matchCategory;
+    });
+
+    const [field, order] = sortBy.split('-');
+    result.sort((a, b) => {
+      const valA = (a[field] || '').toString().toLowerCase();
+      const valB = (b[field] || '').toString().toLowerCase();
+      const comp = valA.localeCompare(valB, undefined, { numeric: true });
+      return order === 'asc' ? comp : -comp;
+    });
+
+    return result;
+  }, [data, search, categoryFilter, sortBy]);
+
+  // Paginated Data
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedData.slice(start, start + pageSize);
+  }, [filteredAndSortedData, currentPage, pageSize]);
+
+  // Selection Handlers
+  const isAllCurrentPageSelected =
+    paginatedData.length > 0 && paginatedData.every((item) => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    const next = new Set(selectedIds);
+    if (isAllCurrentPageSelected) {
+      paginatedData.forEach((item) => next.delete(item.id));
+    } else {
+      paginatedData.forEach((item) => next.add(item.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  // Sort Toggle
+  const handleSortToggle = (field: string) => {
+    if (sortBy === `${field}-asc`) {
+      setSortBy(`${field}-desc`);
+    } else {
+      setSortBy(`${field}-asc`);
+    }
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (sortBy === `${field}-asc`) return <ArrowUp className="inline-block ml-1 h-3.5 w-3.5" />;
+    if (sortBy === `${field}-desc`) return <ArrowDown className="inline-block ml-1 h-3.5 w-3.5" />;
+    return <ArrowUpDown className="inline-block ml-1 h-3.5 w-3.5 opacity-40 hover:opacity-100" />;
+  };
+
+  // CRUD Handlers
   const openCreateDialog = () => {
     setEditId(null);
     setFormData({ code: '', name: '', category: '' });
@@ -56,85 +169,264 @@ export default function AlatKerjaPage() {
     setFormData({
       code: item.code,
       name: item.name,
-      category: item.category
+      category: item.category,
     });
     setIsOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.code || !formData.name) {
+      toast.error('Kode dan nama alat kerja wajib diisi');
+      return;
+    }
+
     if (editId) {
-      setData(prev => prev.map(item => item.id === editId ? { ...formData, id: editId } : item));
-      toast.success('Alat kerja berhasil diubah');
+      setData((prev) => prev.map((item) => (item.id === editId ? { ...item, ...formData } : item)));
+      const res = await updateAlatKerjaAction(editId, formData);
+      if (res.success) {
+        toast.success('Alat kerja berhasil diubah');
+      } else {
+        toast.error(res.error || 'Gagal mengubah alat kerja');
+        loadData();
+      }
     } else {
-      setData(prev => [...prev, { ...formData, id: String(Date.now()) }]);
-      toast.success('Alat kerja berhasil ditambahkan');
+      const res = await addAlatKerjaAction(formData);
+      if (res.success && res.data) {
+        setData((prev) => [res.data!, ...prev]);
+        toast.success('Alat kerja berhasil ditambahkan');
+      } else {
+        toast.error(res.error || 'Gagal menambahkan alat kerja');
+      }
     }
     setIsOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus alat kerja ini?')) {
-      setData(prev => prev.filter(item => item.id !== id));
-      toast.success('Alat kerja berhasil dihapus');
+      const prevData = [...data];
+      setData((prev) => prev.filter((item) => item.id !== id));
+      const res = await deleteAlatKerjaAction(id);
+      if (res.success) {
+        toast.success('Alat kerja berhasil dihapus');
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } else {
+        setData(prevData);
+        toast.error(res.error || 'Gagal menghapus alat kerja');
+      }
+    }
+  };
+
+
+  // Excel Handlers
+  const handleExport = async () => {
+    exportToExcel(filteredAndSortedData, 'Master_Data_Alat_Kerja', EXCEL_COLUMNS);
+    toast.success('File Excel berhasil diunduh');
+  };
+
+  const handleDownloadTemplate = () => {
+    downloadExcelTemplate(EXCEL_COLUMNS, 'Template_Master_Alat_Kerja', MASTER_ALAT_KERJA_DATA.slice(0, 3));
+    toast.success('Template Excel berhasil diunduh');
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const parsed = await parseImportFile(file, EXCEL_COLUMNS);
+      if (parsed.length === 0) {
+        toast.error('File kosong atau format kolom tidak sesuai.');
+        return;
+      }
+      const validRows = parsed
+        .map((row) => ({
+          code: String(row.code || '').trim(),
+          name: String(row.name || '').trim(),
+          category: String(row.category || 'Manual').trim(),
+        }))
+        .filter((r) => r.code && r.name);
+
+      if (validRows.length === 0) {
+        toast.error('Tidak ada data valid dengan Kode dan Nama yang ditemukan.');
+        return;
+      }
+
+      const res = await batchAddAlatKerjaAction(validRows);
+      if (res.success) {
+        toast.success(`Berhasil mengimpor ${res.count} alat kerja.`);
+        await loadData();
+      } else {
+        toast.error(res.error || 'Gagal mengimpor data');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memproses file');
     }
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full space-y-6 pb-12">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Master Data Alat Kerja</h1>
-          <p className="text-gray-500">Kelola daftar alat kerja yang digunakan pada implementasi proyek.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Master Data Alat Kerja</h1>
+          <p className="text-[13px] text-muted-foreground">Kelola daftar alat kerja yang digunakan pada implementasi proyek.</p>
         </div>
-        <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" /> Tambah Alat Kerja
-        </Button>
-      </div>
-
-      <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input 
-            placeholder="Cari alat kerja..." 
-            className="pl-9" 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExcelImportExport
+            onExport={handleExport}
+            onDownloadTemplate={handleDownloadTemplate}
+            onImport={handleImport}
+            isLoading={loading}
           />
+          <Button onClick={openCreateDialog} size="sm" className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px]">
+            <Plus className="h-4 w-4" /> Tambah Alat Kerja
+          </Button>
         </div>
       </div>
 
-      <div className="border rounded-md">
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-4.5 top-3.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari kode atau nama alat..."
+              className="pl-8 h-[32px] my-[6px] mx-[8px] text-[13px]"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+
+          <div className="w-full sm:w-48">
+            <Select
+              value={categoryFilter}
+              onValueChange={(val) => {
+                setCategoryFilter(val || 'ALL');
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[32px] my-[6px] mx-[8px] text-[13px]">
+                <SelectValue placeholder="Filter Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-[13px]">Semua Kategori</SelectItem>
+                {KATEGORI_ALAT.map((k) => (
+                  <SelectItem key={k} value={k} className="text-[13px]">{k}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
+          <span className="text-[13px] text-muted-foreground whitespace-nowrap mx-[8px] my-[6px]">Urutkan:</span>
+          <Select
+            value={sortBy}
+            onValueChange={(val) => {
+              setSortBy(val || 'code-asc');
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="h-[32px] my-[6px] mx-[8px] w-48 text-[13px]">
+              <SelectValue placeholder="Urutkan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="code-asc" className="text-[13px]">ID/Kode (A-Z)</SelectItem>
+              <SelectItem value="code-desc" className="text-[13px]">ID/Kode (Z-A)</SelectItem>
+              <SelectItem value="name-asc" className="text-[13px]">Nama Alat (A-Z)</SelectItem>
+              <SelectItem value="name-desc" className="text-[13px]">Nama Alat (Z-A)</SelectItem>
+              <SelectItem value="category-asc" className="text-[13px]">Kategori (A-Z)</SelectItem>
+              <SelectItem value="category-desc" className="text-[13px]">Kategori (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Table Single Border */}
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
-          <TableHeader className="bg-gray-50">
+          <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold text-gray-700">Kode Alat</TableHead>
-              <TableHead className="font-semibold text-gray-700">Nama Alat Kerja</TableHead>
-              <TableHead className="font-semibold text-gray-700">Kategori</TableHead>
-              <TableHead className="text-right font-semibold text-gray-700">Aksi</TableHead>
+              <TableHead className="w-12 px-3 text-[13px]">
+                <Checkbox
+                  checked={isAllCurrentPageSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Pilih semua baris"
+                />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('code')}
+              >
+                Kode Alat {renderSortIcon('code')}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('name')}
+              >
+                Nama Alat Kerja {renderSortIcon('name')}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('category')}
+              >
+                Kategori {renderSortIcon('category')}
+              </TableHead>
+              <TableHead className="text-right text-[13px] font-semibold pr-4">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.length > 0 ? (
-              filteredData.map((item) => (
-                <TableRow key={item.id} className="hover:bg-gray-50/50">
-                  <TableCell className="font-medium">{item.code}</TableCell>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
-                      <Pencil className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-28 text-center text-[13px] text-muted-foreground">
+                  Memuat data alat kerja...
+                </TableCell>
+              </TableRow>
+            ) : paginatedData.length > 0 ? (
+              paginatedData.map((item) => {
+                const isSelected = selectedIds.has(item.id);
+                return (
+                  <TableRow
+                    key={item.id}
+                    data-state={isSelected ? 'selected' : undefined}
+                    className="hover:bg-muted/40 transition-colors"
+                  >
+                    <TableCell className="px-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectRow(item.id)}
+                        aria-label={`Pilih ${item.code}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-mono text-[13px] font-medium">{item.code}</TableCell>
+                    <TableCell className="text-[13px] font-medium">{item.name}</TableCell>
+                    <TableCell className="text-[13px]">
+                      <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[13px] font-medium">
+                        {item.category}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right space-x-1 pr-4">
+                      <Button variant="ghost" size="icon" className="h-[32px] w-[32px]" onClick={() => openEditDialog(item)}>
+                        <Pencil className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-[32px] w-[32px]" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24 text-gray-500">
-                  Tidak ada data ditemukan.
+                <TableCell colSpan={5} className="h-32 text-center text-[13px] text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <p>Tidak ada alat kerja yang sesuai.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -142,49 +434,72 @@ export default function AlatKerjaPage() {
         </Table>
       </div>
 
+      {/* Pagination Footer */}
+      <DataTablePagination
+        totalItems={filteredAndSortedData.length}
+        pageSize={pageSize}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        selectedCount={selectedIds.size}
+      />
+
+      {/* Dialog Form */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editId ? 'Edit Alat Kerja' : 'Tambah Alat Kerja'}</DialogTitle>
-            <DialogDescription>
-              Isi detail alat kerja.
+            <DialogTitle className="text-[16px] font-semibold">{editId ? 'Edit Alat Kerja' : 'Tambah Alat Kerja'}</DialogTitle>
+            <DialogDescription className="text-[13px]">
+              Isi detail informasi alat kerja untuk implementasi proyek.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-            <div className="grid gap-2">
-              <Label>Kode Alat</Label>
-              <Input 
-                required 
-                value={formData.code} 
-                onChange={(e) => setFormData({...formData, code: e.target.value})}
-                placeholder="Contoh: AL-001" 
+          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Kode Alat</Label>
+              <Input
+                required
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                placeholder="Contoh: AL-001"
+                className="h-[32px] text-[13px]"
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Nama Alat Kerja</Label>
-              <Input 
-                required 
-                value={formData.name} 
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Contoh: Excavator (Beko)" 
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Nama Alat Kerja</Label>
+              <Input
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Contoh: Excavator (Beko)"
+                className="h-[32px] text-[13px]"
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Kategori</Label>
-              <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val || ""})} required>
-                <SelectTrigger>
+            <div className="grid gap-1.5">
+              <Label className="text-[13px]">Kategori</Label>
+              <Select
+                value={formData.category}
+                onValueChange={(val) => setFormData({ ...formData, category: val || '' })}
+                required
+              >
+                <SelectTrigger className="h-[32px] text-[13px]">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  {KATEGORI_ALAT.map(k => (
-                    <SelectItem key={k} value={k}>{k}</SelectItem>
+                  {KATEGORI_ALAT.map((k) => (
+                    <SelectItem key={k} value={k} className="text-[13px]">
+                      {k}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Batal</Button>
-              <Button type="submit">{editId ? 'Simpan Perubahan' : 'Tambah'}</Button>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)} className="h-[32px] text-[13px]">
+                Batal
+              </Button>
+              <Button type="submit" size="sm" className="h-[32px] text-[13px]">
+                {editId ? 'Simpan Perubahan' : 'Tambah Alat Kerja'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

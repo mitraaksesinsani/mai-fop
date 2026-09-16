@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Building2,
   Plus,
   Search,
   Edit2,
@@ -10,19 +9,15 @@ import {
   Phone,
   Mail,
   MapPin,
-  CheckCircle2,
-  XCircle,
-  Briefcase,
-  Radio,
-  Building,
-  Landmark,
-  Layers,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -40,8 +35,17 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useBowheer, Bowheer, BowheerCategory } from '@/context/BowheerContext';
+import { useBowheer, Bowheer, BowheerCategory, INITIAL_BOWHEERS } from '@/context/BowheerContext';
 import { toast } from 'sonner';
+import { ExcelImportExport } from '@/components/ExcelImportExport';
+import { DataTablePagination } from '@/components/shared/DataTablePagination';
+import {
+  exportToExcel,
+  downloadExcelTemplate,
+  parseImportFile,
+  ColumnDefinition,
+} from '@/lib/masterDataExportImport';
+import { batchAddBowheersAction } from '@/app/actions/masterData';
 
 const CATEGORIES: BowheerCategory[] = [
   'Telekomunikasi',
@@ -51,13 +55,31 @@ const CATEGORIES: BowheerCategory[] = [
   'Lainnya',
 ];
 
-export default function BowheerMasterPage() {
-  const { bowheers, addBowheer, updateBowheer, deleteBowheer } = useBowheer();
+const EXCEL_COLUMNS: ColumnDefinition[] = [
+  { key: 'code', label: 'Kode Bowheer', required: true },
+  { key: 'name', label: 'Nama Perusahaan', required: true },
+  { key: 'alias', label: 'Alias/Singkatan' },
+  { key: 'category', label: 'Kategori Industri', required: true },
+  { key: 'contactPerson', label: 'Contact Person' },
+  { key: 'phone', label: 'Telepon' },
+  { key: 'email', label: 'Email' },
+  { key: 'address', label: 'Alamat' },
+  { key: 'status', label: 'Status (ACTIVE/INACTIVE)' },
+];
 
-  // Search & Filter State
+export default function BowheerMasterPage() {
+  const { bowheers, addBowheer, updateBowheer, deleteBowheer, refreshBowheers, isLoading } = useBowheer();
+
+  // Search, Filter, Sort State
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState('code-asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,21 +99,13 @@ export default function BowheerMasterPage() {
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
   });
 
-  // KPI Metrics
-  const stats = useMemo(() => {
-    const total = bowheers.length;
-    const active = bowheers.filter((b) => b.status === 'ACTIVE').length;
-    const telco = bowheers.filter((b) => b.category === 'Telekomunikasi').length;
-    const enterprise = bowheers.filter((b) => b.category !== 'Telekomunikasi').length;
-    return { total, active, telco, enterprise };
-  }, [bowheers]);
 
-  // Filtered List
-  const filteredBowheers = useMemo(() => {
-    return bowheers.filter((b) => {
+  // Filtered & Sorted List
+  const filteredAndSortedBowheers = useMemo(() => {
+    let result = bowheers.filter((b) => {
       const matchSearch =
-        b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (b.alias && b.alias.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (b.contactPerson && b.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (b.email && b.email.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -101,8 +115,64 @@ export default function BowheerMasterPage() {
 
       return matchSearch && matchCategory && matchStatus;
     });
-  }, [bowheers, searchTerm, categoryFilter, statusFilter]);
 
+    const [field, order] = sortBy.split('-');
+    result.sort((a: any, b: any) => {
+      const valA = (a[field] || '').toString().toLowerCase();
+      const valB = (b[field] || '').toString().toLowerCase();
+      const comp = valA.localeCompare(valB, undefined, { numeric: true });
+      return order === 'asc' ? comp : -comp;
+    });
+
+    return result;
+  }, [bowheers, searchTerm, categoryFilter, statusFilter, sortBy]);
+
+  // Paginated List
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedBowheers.slice(start, start + pageSize);
+  }, [filteredAndSortedBowheers, currentPage, pageSize]);
+
+  // Selection Handlers
+  const isAllCurrentPageSelected =
+    paginatedData.length > 0 && paginatedData.every((item) => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    const next = new Set(selectedIds);
+    if (isAllCurrentPageSelected) {
+      paginatedData.forEach((item) => next.delete(item.id));
+    } else {
+      paginatedData.forEach((item) => next.add(item.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  // Sort Handlers
+  const handleSortToggle = (field: string) => {
+    if (sortBy === `${field}-asc`) {
+      setSortBy(`${field}-desc`);
+    } else {
+      setSortBy(`${field}-asc`);
+    }
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (sortBy === `${field}-asc`) return <ArrowUp className="inline-block ml-1 h-3.5 w-3.5" />;
+    if (sortBy === `${field}-desc`) return <ArrowDown className="inline-block ml-1 h-3.5 w-3.5" />;
+    return <ArrowUpDown className="inline-block ml-1 h-3.5 w-3.5 opacity-40 hover:opacity-100" />;
+  };
+
+  // Modal Handlers
   const openCreateModal = () => {
     setEditingBowheer(null);
     setFormData({
@@ -180,8 +250,62 @@ export default function BowheerMasterPage() {
   const handleConfirmDelete = () => {
     if (deleteCandidate) {
       deleteBowheer(deleteCandidate.id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteCandidate.id);
+        return next;
+      });
       toast.success(`Bowheer ${deleteCandidate.name} berhasil dihapus.`);
       setDeleteCandidate(null);
+    }
+  };
+
+  // Excel Handlers
+  const handleExport = async () => {
+    exportToExcel(filteredAndSortedBowheers, 'Master_Data_Bowheer', EXCEL_COLUMNS);
+    toast.success('File Excel berhasil diunduh');
+  };
+
+  const handleDownloadTemplate = () => {
+    downloadExcelTemplate(EXCEL_COLUMNS, 'Template_Master_Bowheer', INITIAL_BOWHEERS.slice(0, 3));
+    toast.success('Template Excel berhasil diunduh');
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const parsed = await parseImportFile(file, EXCEL_COLUMNS);
+      if (parsed.length === 0) {
+        toast.error('File kosong atau format kolom tidak sesuai.');
+        return;
+      }
+      const validRows = parsed
+        .map((row) => ({
+          code: String(row.code || '').trim().toUpperCase(),
+          name: String(row.name || '').trim(),
+          alias: row.alias ? String(row.alias).trim() : '',
+          category: (row.category || 'Telekomunikasi') as BowheerCategory,
+          contactPerson: row.contactPerson ? String(row.contactPerson).trim() : '',
+          phone: row.phone ? String(row.phone).trim() : '',
+          email: row.email ? String(row.email).trim() : '',
+          address: row.address ? String(row.address).trim() : '',
+          status: (row.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
+        }))
+        .filter((r) => r.code && r.name);
+
+      if (validRows.length === 0) {
+        toast.error('Tidak ada data valid dengan Kode dan Nama Perusahaan.');
+        return;
+      }
+
+      const res = await batchAddBowheersAction(validRows);
+      if (res.success) {
+        toast.success(`Berhasil mengimpor ${res.count} Bowheer.`);
+        await refreshBowheers();
+      } else {
+        toast.error(res.error || 'Gagal mengimpor data');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memproses file');
     }
   };
 
@@ -201,229 +325,228 @@ export default function BowheerMasterPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12 text-[12px]">
+    <div className="w-full space-y-6 pb-12">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Master Data Bowheer (Klien)
-              </h1>
-              <p className="text-muted-foreground text-[12px] mt-0.5">
-                Daftar pemilik proyek / klien telekomunikasi dan enterprise yang digunakan sebagai pilihan Customer / Client di proyek
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Master Data Bowheer (Klien)
+          </h1>
+          <p className="text-muted-foreground text-[12px] mt-0.5">
+            Daftar pemilik proyek / klien telekomunikasi dan enterprise yang digunakan sebagai pilihan Customer di proyek.
+          </p>
         </div>
 
-        <Button onClick={openCreateModal} className="gap-2 cursor-pointer shadow-sm">
-          <Plus className="w-4 h-4" />
-          Tambah Bowheer
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExcelImportExport
+            onExport={handleExport}
+            onDownloadTemplate={handleDownloadTemplate}
+            onImport={handleImport}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border border-border/60 shadow-none bg-card">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Bowheer</p>
-              <h3 className="text-2xl font-bold mt-1 text-foreground">{stats.total}</h3>
-            </div>
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <Building2 className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="border border-border/60 shadow-none bg-card">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Status Aktif</p>
-              <h3 className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">
-                {stats.active}
-              </h3>
-            </div>
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-4.5 top-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Cari kode, nama, atau PIC..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-8 h-[32px] my-[6px] mx-[8px] text-[13px] bg-background"
+            />
+          </div>
 
-        <Card className="border border-border/60 shadow-none bg-card">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Telekomunikasi</p>
-              <h3 className="text-2xl font-bold mt-1 text-blue-600 dark:text-blue-400">
-                {stats.telco}
-              </h3>
-            </div>
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50">
-              <Radio className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="w-full sm:w-48">
+            <Select
+              value={categoryFilter}
+              onValueChange={(val) => {
+                setCategoryFilter(val || 'ALL');
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[32px] my-[6px] mx-[8px] text-[13px] bg-background">
+                <SelectValue placeholder="Semua Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-[13px]">Semua Kategori</SelectItem>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat} className="text-[13px]">
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Card className="border border-border/60 shadow-none bg-card">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">BUMN & Enterprise</p>
-              <h3 className="text-2xl font-bold mt-1 text-purple-600 dark:text-purple-400">
-                {stats.enterprise}
-              </h3>
-            </div>
-            <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/50">
-              <Landmark className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="w-full sm:w-40">
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val || 'ALL');
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[32px] my-[6px] mx-[8px] text-[13px] bg-background">
+                <SelectValue placeholder="Semua Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-[13px]">Semua Status</SelectItem>
+                <SelectItem value="ACTIVE" className="text-[13px]">Aktif</SelectItem>
+                <SelectItem value="INACTIVE" className="text-[13px]">Non-Aktif</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button onClick={openCreateModal} size="sm" className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px]">
+            <Plus className="w-4 h-4" />
+            Tambah Bowheer
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
+          <span className="text-[13px] text-muted-foreground whitespace-nowrap mx-[8px] my-[6px]">Urutkan:</span>
+          <Select
+            value={sortBy}
+            onValueChange={(val) => {
+              setSortBy(val || 'code-asc');
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="h-[32px] my-[6px] mx-[8px] w-48 text-[13px]">
+              <SelectValue placeholder="Urutkan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="code-asc" className="text-[13px]">ID/Kode (A-Z)</SelectItem>
+              <SelectItem value="code-desc" className="text-[13px]">ID/Kode (Z-A)</SelectItem>
+              <SelectItem value="name-asc" className="text-[13px]">Nama Perusahaan (A-Z)</SelectItem>
+              <SelectItem value="name-desc" className="text-[13px]">Nama Perusahaan (Z-A)</SelectItem>
+              <SelectItem value="category-asc" className="text-[13px]">Kategori (A-Z)</SelectItem>
+              <SelectItem value="category-desc" className="text-[13px]">Kategori (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Filter & Search Controls */}
-      <Card className="border border-border/60 shadow-none bg-card">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-            {/* Search Bar */}
-            <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari kode, nama, atau PIC..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-xs bg-background"
-              />
-            </div>
-
-            {/* Filter Dropdowns */}
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="w-44">
-                    <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val || '')}>
-                  <SelectTrigger className="h-9 text-xs bg-background">
-                    <SelectValue placeholder="Semua Kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL" className="text-xs">Semua Kategori</SelectItem>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="text-xs">
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="w-36">
-                    <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || '')}>
-                  <SelectTrigger className="h-9 text-xs bg-background">
-                    <SelectValue placeholder="Semua Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL" className="text-xs">Semua Status</SelectItem>
-                    <SelectItem value="ACTIVE" className="text-xs">Aktif</SelectItem>
-                    <SelectItem value="INACTIVE" className="text-xs">Non-Aktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table Section */}
-      <Card className="border border-border/60 shadow-none bg-card overflow-hidden">
-        <CardHeader className="p-4 border-b bg-muted/20 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-sm font-semibold">Daftar Bowheer / Klien</CardTitle>
-            <CardDescription className="text-xs mt-0.5">
-              Menampilkan {filteredBowheers.length} dari total {bowheers.length} bowheer terdaftar
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/40">
-              <TableRow className="text-xs">
-                <TableHead className="w-24 pl-5">Kode</TableHead>
-                <TableHead className="min-w-[220px]">Nama Perusahaan / Klien</TableHead>
-                <TableHead className="w-40">Kategori</TableHead>
-                <TableHead className="min-w-[180px]">Kontak PIC</TableHead>
-                <TableHead className="min-w-[200px]">Alamat</TableHead>
-                <TableHead className="w-28 text-center">Status</TableHead>
-                <TableHead className="w-24 text-right pr-5">Aksi</TableHead>
+      {/* Table Single Border (No Double Outline) */}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12 px-3 text-[13px]">
+                <Checkbox
+                  checked={isAllCurrentPageSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Pilih semua baris"
+                />
+              </TableHead>
+              <TableHead
+                className="w-24 cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('code')}
+              >
+                Kode {renderSortIcon('code')}
+              </TableHead>
+              <TableHead
+                className="min-w-[200px] cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('name')}
+              >
+                Nama Perusahaan / Klien {renderSortIcon('name')}
+              </TableHead>
+              <TableHead
+                className="w-40 cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('category')}
+              >
+                Kategori {renderSortIcon('category')}
+              </TableHead>
+              <TableHead className="min-w-[180px] text-[13px] font-semibold">Kontak PIC</TableHead>
+              <TableHead className="min-w-[200px] text-[13px] font-semibold">Alamat</TableHead>
+              <TableHead className="w-24 text-center text-[13px] font-semibold">Status</TableHead>
+              <TableHead className="w-24 text-right pr-4 text-[13px] font-semibold">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-28 text-center text-[13px] text-muted-foreground">
+                  Memuat data Bowheer...
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBowheers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-36 text-center text-muted-foreground text-xs">
-                    Tidak ada data Bowheer yang cocok dengan kriteria pencarian.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredBowheers.map((b) => (
-                  <TableRow key={b.id} className="hover:bg-muted/30 transition-colors text-xs">
-                    {/* Kode */}
-                    <TableCell className="pl-5 font-bold">
-                      <span className="px-2 py-0.5 rounded bg-muted border font-mono text-[11px] tracking-wider text-foreground">
+            ) : paginatedData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-[13px]">
+                  Tidak ada data Bowheer yang cocok dengan kriteria pencarian.
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedData.map((b) => {
+                const isSelected = selectedIds.has(b.id);
+                return (
+                  <TableRow
+                    key={b.id}
+                    data-state={isSelected ? 'selected' : undefined}
+                    className="hover:bg-muted/30 transition-colors text-[13px]"
+                  >
+                    <TableCell className="px-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectRow(b.id)}
+                        aria-label={`Pilih ${b.code}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-bold">
+                      <span className="px-2.5 py-1 rounded bg-muted border font-mono text-[13px] tracking-wider text-foreground">
                         {b.code}
                       </span>
                     </TableCell>
-
-                    {/* Nama & Alias */}
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-foreground">{b.name}</span>
+                        <span className="font-semibold text-foreground text-[13px]">{b.name}</span>
                         {b.alias && (
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-[13px] text-muted-foreground">
                             Alias: {b.alias}
                           </span>
                         )}
                       </div>
                     </TableCell>
-
-                    {/* Kategori */}
                     <TableCell>
-                      <Badge variant="outline" className={`text-[11px] font-normal px-2 py-0.5 ${getCategoryBadgeClass(b.category)}`}>
+                      <Badge variant="outline" className={`text-[13px] font-normal px-2.5 py-0.5 ${getCategoryBadgeClass(b.category)}`}>
                         {b.category}
                       </Badge>
                     </TableCell>
-
-                    {/* Kontak PIC */}
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-foreground">{b.contactPerson || '-'}</span>
+                        <span className="font-medium text-foreground text-[13px]">{b.contactPerson || '-'}</span>
                         {b.phone && (
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <Phone className="w-3 h-3 shrink-0" />
+                          <div className="flex items-center gap-1 text-[13px] text-muted-foreground">
+                            <Phone className="w-3.5 h-3.5 shrink-0" />
                             <span>{b.phone}</span>
                           </div>
                         )}
                         {b.email && (
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <Mail className="w-3 h-3 shrink-0" />
+                          <div className="flex items-center gap-1 text-[13px] text-muted-foreground">
+                            <Mail className="w-3.5 h-3.5 shrink-0" />
                             <span className="truncate max-w-[160px]">{b.email}</span>
                           </div>
                         )}
                       </div>
                     </TableCell>
-
-                    {/* Alamat */}
                     <TableCell>
-                      <div className="flex items-start gap-1 text-[11px] text-muted-foreground max-w-[240px]">
-                        <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-1 text-[13px] text-muted-foreground max-w-[240px]">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">{b.address || '-'}</span>
                       </div>
                     </TableCell>
-
-                    {/* Status */}
                     <TableCell className="text-center">
                       <Badge
                         variant="outline"
-                        className={`text-[11px] font-medium px-2 py-0.5 ${
+                        className={`text-[13px] font-medium px-2.5 py-0.5 ${
                           b.status === 'ACTIVE'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
                             : 'bg-zinc-100 text-zinc-600 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-400'
@@ -432,55 +555,62 @@ export default function BowheerMasterPage() {
                         {b.status === 'ACTIVE' ? 'Aktif' : 'Non-Aktif'}
                       </Badge>
                     </TableCell>
-
-                    {/* Aksi */}
-                    <TableCell className="text-right pr-5">
+                    <TableCell className="text-right pr-4">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditModal(b)}
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-foreground"
                           title="Edit Bowheer"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeleteCandidate(b)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive cursor-pointer"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-destructive"
                           title="Hapus Bowheer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      {/* Modal Tambah / Edit Bowheer */}
+      {/* Pagination Footer */}
+      <DataTablePagination
+        totalItems={filteredAndSortedBowheers.length}
+        pageSize={pageSize}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        selectedCount={selectedIds.size}
+      />
+
+      {/* Modal Tambah / Edit */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-lg">
+            <DialogTitle className="text-[16px] font-semibold">
               {editingBowheer ? 'Edit Data Bowheer' : 'Tambah Bowheer Baru'}
             </DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription className="text-[13px]">
               Lengkapi informasi klien / bowheer yang akan dijadikan referensi Customer pada proyek.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
-              {/* Kode Bowheer */}
               <div className="space-y-1.5">
-                <Label htmlFor="bwhCode" className="text-xs">
+                <Label htmlFor="bwhCode" className="text-[13px]">
                   Kode Bowheer <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -489,25 +619,24 @@ export default function BowheerMasterPage() {
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   required
-                  className="font-mono text-xs uppercase"
+                  className="font-mono text-[13px] uppercase h-[32px]"
                 />
               </div>
 
-              {/* Kategori */}
               <div className="space-y-1.5">
-                <Label htmlFor="bwhCategory" className="text-xs">
+                <Label htmlFor="bwhCategory" className="text-[13px]">
                   Kategori Industri <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={formData.category}
-                    onValueChange={(val: any) => setFormData({ ...formData, category: val })}
+                  onValueChange={(val: any) => setFormData({ ...formData, category: val })}
                 >
-                  <SelectTrigger id="bwhCategory" className="text-xs">
+                  <SelectTrigger id="bwhCategory" className="text-[13px] h-[32px]">
                     <SelectValue placeholder="Pilih Kategori" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c} className="text-xs">
+                      <SelectItem key={c} value={c} className="text-[13px]">
                         {c}
                       </SelectItem>
                     ))}
@@ -515,9 +644,8 @@ export default function BowheerMasterPage() {
                 </Select>
               </div>
 
-              {/* Nama Resmi Perusahaan */}
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="bwhName" className="text-xs">
+                <Label htmlFor="bwhName" className="text-[13px]">
                   Nama Resmi Perusahaan (PT / Instansi) <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -526,13 +654,12 @@ export default function BowheerMasterPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="text-xs"
+                  className="text-[13px] h-[32px]"
                 />
               </div>
 
-              {/* Nama Singkatan / Alias */}
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="bwhAlias" className="text-xs">
+                <Label htmlFor="bwhAlias" className="text-[13px]">
                   Nama Populer / Singkatan (Opsional)
                 </Label>
                 <Input
@@ -540,13 +667,12 @@ export default function BowheerMasterPage() {
                   placeholder="Contoh: Telkomsel, IOH, Moratelindo"
                   value={formData.alias}
                   onChange={(e) => setFormData({ ...formData, alias: e.target.value })}
-                  className="text-xs"
+                  className="text-[13px] h-[32px]"
                 />
               </div>
 
-              {/* PIC Contact Person */}
               <div className="space-y-1.5">
-                <Label htmlFor="bwhPic" className="text-xs">
+                <Label htmlFor="bwhPic" className="text-[13px]">
                   Contact Person (PIC Bowheer)
                 </Label>
                 <Input
@@ -554,13 +680,12 @@ export default function BowheerMasterPage() {
                   placeholder="Nama PIC Klien"
                   value={formData.contactPerson}
                   onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                  className="text-xs"
+                  className="text-[13px] h-[32px]"
                 />
               </div>
 
-              {/* Telepon */}
               <div className="space-y-1.5">
-                <Label htmlFor="bwhPhone" className="text-xs">
+                <Label htmlFor="bwhPhone" className="text-[13px]">
                   No. Telepon / HP
                 </Label>
                 <Input
@@ -568,13 +693,12 @@ export default function BowheerMasterPage() {
                   placeholder="Contoh: 021-5240123 / 0812xxxx"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="text-xs"
+                  className="text-[13px] h-[32px]"
                 />
               </div>
 
-              {/* Email */}
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="bwhEmail" className="text-xs">
+                <Label htmlFor="bwhEmail" className="text-[13px]">
                   Email Klien / Procurement
                 </Label>
                 <Input
@@ -583,13 +707,12 @@ export default function BowheerMasterPage() {
                   placeholder="Contoh: procurement@client.co.id"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="text-xs"
+                  className="text-[13px] h-[32px]"
                 />
               </div>
 
-              {/* Alamat */}
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="bwhAddress" className="text-xs">
+                <Label htmlFor="bwhAddress" className="text-[13px]">
                   Alamat Kantor
                 </Label>
                 <Textarea
@@ -598,25 +721,24 @@ export default function BowheerMasterPage() {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   rows={2}
-                  className="text-xs resize-none"
+                  className="text-[13px] resize-none"
                 />
               </div>
 
-              {/* Status */}
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="bwhStatus" className="text-xs">
+                <Label htmlFor="bwhStatus" className="text-[13px]">
                   Status Bowheer
                 </Label>
                 <Select
                   value={formData.status}
                   onValueChange={(val: any) => setFormData({ ...formData, status: val })}
                 >
-                  <SelectTrigger id="bwhStatus" className="text-xs">
+                  <SelectTrigger id="bwhStatus" className="text-[13px] h-[32px]">
                     <SelectValue placeholder="Pilih Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIVE" className="text-xs">Aktif (Tampil di Opsi Pilihan Proyek)</SelectItem>
-                    <SelectItem value="INACTIVE" className="text-xs">Non-Aktif (Diarsipkan)</SelectItem>
+                    <SelectItem value="ACTIVE" className="text-[13px]">Aktif (Tampil di Opsi Pilihan Proyek)</SelectItem>
+                    <SelectItem value="INACTIVE" className="text-[13px]">Non-Aktif (Diarsipkan)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -626,12 +748,13 @@ export default function BowheerMasterPage() {
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => setIsModalOpen(false)}
-                className="text-xs cursor-pointer"
+                className="h-[32px] text-[13px]"
               >
                 Batal
               </Button>
-              <Button type="submit" className="text-xs cursor-pointer">
+              <Button type="submit" size="sm" className="h-[32px] text-[13px]">
                 {editingBowheer ? 'Simpan Perubahan' : 'Tambah Bowheer'}
               </Button>
             </DialogFooter>
@@ -643,11 +766,11 @@ export default function BowheerMasterPage() {
       <Dialog open={!!deleteCandidate} onOpenChange={(open) => !open && setDeleteCandidate(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base text-destructive flex items-center gap-2">
+            <DialogTitle className="text-[16px] text-destructive flex items-center gap-2 font-semibold">
               <Trash2 className="w-4 h-4" />
               Konfirmasi Hapus Bowheer
             </DialogTitle>
-            <DialogDescription className="text-xs pt-2">
+            <DialogDescription className="text-[13px] pt-2">
               Apakah Anda yakin ingin menghapus Bowheer <span className="font-semibold text-foreground">"{deleteCandidate?.name}"</span> ({deleteCandidate?.code})?
               Data yang dihapus tidak akan muncul lagi di daftar pilihan Customer proyek baru.
             </DialogDescription>
@@ -656,16 +779,18 @@ export default function BowheerMasterPage() {
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => setDeleteCandidate(null)}
-              className="text-xs cursor-pointer"
+              className="h-[32px] text-[13px]"
             >
               Batal
             </Button>
             <Button
               type="button"
               variant="destructive"
+              size="sm"
               onClick={handleConfirmDelete}
-              className="text-xs cursor-pointer"
+              className="h-[32px] text-[13px]"
             >
               Ya, Hapus Bowheer
             </Button>

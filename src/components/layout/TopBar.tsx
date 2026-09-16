@@ -152,12 +152,14 @@ export default function TopBar() {
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
-              <Link href="/settings" className="flex items-center w-full gap-2">
-                <Settings className="w-4 h-4 text-muted-foreground" />
-                <span>Settings</span>
-              </Link>
-            </DropdownMenuItem>
+            {user?.role?.toUpperCase() !== 'OWNER' && (
+              <DropdownMenuItem className="cursor-pointer">
+                <Link href="/settings" className="flex items-center w-full gap-2">
+                  <Settings className="w-4 h-4 text-muted-foreground" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={logout} 

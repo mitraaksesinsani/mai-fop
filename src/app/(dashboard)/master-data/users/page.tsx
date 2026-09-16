@@ -11,25 +11,32 @@ import {
   EyeOff,
   Copy,
   Check,
-  KeyRound,
   ShieldCheck,
   UserCheck,
   Crown,
   Briefcase,
   HardHat,
-  Filter,
   RefreshCw,
-  UserPlus
+  UserPlus,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import {
+  getUsersAction,
+  saveUserAction,
+  deleteUserAction,
+  batchAddUsersAction,
+} from '@/app/actions/masterData';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,24 +46,32 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { ExcelImportExport } from '@/components/ExcelImportExport';
+import { DataTablePagination } from '@/components/shared/DataTablePagination';
+import {
+  exportToExcel,
+  downloadExcelTemplate,
+  parseImportFile,
+  ColumnDefinition,
+} from '@/lib/masterDataExportImport';
 
 export type UserRole = 'ADMIN' | 'OWNER' | 'SITE MANAGER' | 'MANAGEMENT';
 
 export interface SystemUser {
   id: string;
-  username: string; // untuk login
+  username: string;
   fullName: string;
   password: string;
   role: UserRole;
@@ -74,7 +89,7 @@ const INITIAL_USERS: SystemUser[] = [
     password: 'admin123',
     role: 'ADMIN',
     createdAt: '2026-09-14T09:30:56.549Z',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   },
   {
     id: '7acef50a-f9df-4ab2-bc6b-d5f9ceda7d02',
@@ -83,7 +98,7 @@ const INITIAL_USERS: SystemUser[] = [
     password: 'owner123',
     role: 'OWNER',
     createdAt: '2026-09-14T09:30:56.549Z',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   },
   {
     id: 'f2ae8c76-1065-41af-b892-4a7e76f6a990',
@@ -92,7 +107,7 @@ const INITIAL_USERS: SystemUser[] = [
     password: 'sm12345',
     role: 'SITE MANAGER',
     createdAt: '2026-09-14T09:30:56.549Z',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   },
   {
     id: '711a15ba-aec0-462b-a994-0c3c7384dad1',
@@ -101,14 +116,30 @@ const INITIAL_USERS: SystemUser[] = [
     password: 'mgmt12345',
     role: 'MANAGEMENT',
     createdAt: '2026-09-14T09:30:56.549Z',
-    status: 'ACTIVE'
-  }
+    status: 'ACTIVE',
+  },
+];
+
+const EXCEL_COLUMNS: ColumnDefinition[] = [
+  { key: 'username', label: 'Username (Login)', required: true },
+  { key: 'fullName', label: 'Nama Lengkap', required: true },
+  { key: 'password', label: 'Password', required: true },
+  { key: 'role', label: 'Role (ADMIN/OWNER/SITE MANAGER/MANAGEMENT)', required: true },
+  { key: 'status', label: 'Status (ACTIVE/INACTIVE)' },
 ];
 
 export default function MasterDataUsersPage() {
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<string>('username-asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -127,57 +158,44 @@ export default function MasterDataUsersPage() {
     username: '',
     fullName: '',
     password: '',
-    role: 'ADMIN'
+    role: 'ADMIN',
   });
   const [showModalPassword, setShowModalPassword] = useState(false);
 
   // Delete Dialog State
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<SystemUser | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // Load users from Supabase or localStorage
   const loadUsers = async () => {
-    // 1. Coba ambil dari Supabase jika tersambung
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          const mapped: SystemUser[] = data.map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            fullName: u.name || u.fullName,
-            password: u.password,
-            role: (u.role as UserRole) || 'ADMIN',
-            createdAt: u.created_at || new Date().toISOString(),
-            status: (u.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE'
-          }));
-          setUsers(mapped);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
-          return;
-        }
-      } catch (err) {
-        console.warn('Supabase fetch notice, falling back to local:', err);
-      }
-    }
-
-    // 2. Fallback ke localStorage
+    setIsLoadingData(true);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setUsers(parsed);
-          return;
-        }
+      const res = await getUsersAction();
+      let serverUsers: SystemUser[] = [];
+
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        serverUsers = res.data.map((u) => ({
+          id: u.id,
+          username: u.username,
+          fullName: u.fullName,
+          password: u.password,
+          role: (u.role as UserRole) || 'ADMIN',
+          createdAt: u.createdAt || new Date().toISOString(),
+          status: (u.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
+        }));
       }
-      setUsers(INITIAL_USERS);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_USERS));
+
+      if (serverUsers.length > 0) {
+        setUsers(serverUsers);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverUsers));
+      } else {
+        setUsers(INITIAL_USERS);
+      }
     } catch (e) {
+      console.error('Failed to load users:', e);
       setUsers(INITIAL_USERS);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -185,8 +203,7 @@ export default function MasterDataUsersPage() {
     loadUsers();
   }, []);
 
-  // Save to localStorage helper
-  const saveUsers = (updated: SystemUser[]) => {
+  const saveUsersState = (updated: SystemUser[]) => {
     setUsers(updated);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -195,16 +212,72 @@ export default function MasterDataUsersPage() {
     }
   };
 
-  // Filtered Users
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+  // Filtered and Sorted Users
+  const filteredAndSortedUsers = useMemo(() => {
+    let result = users.filter((u) => {
       const matchesSearch =
-        u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        u.username.toLowerCase().includes(search.toLowerCase());
+        u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+        u.username?.toLowerCase().includes(search.toLowerCase());
       const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-      return matchesSearch && matchesRole;
+      const matchesStatus = statusFilter === 'ALL' || u.status === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, search, roleFilter]);
+
+    const [field, order] = sortBy.split('-');
+    result.sort((a, b) => {
+      const valA = ((a as any)[field] || '').toString().toLowerCase();
+      const valB = ((b as any)[field] || '').toString().toLowerCase();
+      const comp = valA.localeCompare(valB, undefined, { numeric: true });
+      return order === 'asc' ? comp : -comp;
+    });
+
+    return result;
+  }, [users, search, roleFilter, statusFilter, sortBy]);
+
+  // Paginated List
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredAndSortedUsers.slice(start, start + pageSize);
+  }, [filteredAndSortedUsers, page, pageSize]);
+
+  // Selection Handlers
+  const isAllCurrentPageSelected =
+    paginatedData.length > 0 && paginatedData.every((item) => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    const next = new Set(selectedIds);
+    if (isAllCurrentPageSelected) {
+      paginatedData.forEach((item) => next.delete(item.id));
+    } else {
+      paginatedData.forEach((item) => next.add(item.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  // Sort Toggle
+  const handleSortToggle = (field: string) => {
+    if (sortBy === `${field}-asc`) {
+      setSortBy(`${field}-desc`);
+    } else {
+      setSortBy(`${field}-asc`);
+    }
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (sortBy === `${field}-asc`) return <ArrowUp className="inline-block ml-1 h-3.5 w-3.5" />;
+    if (sortBy === `${field}-desc`) return <ArrowDown className="inline-block ml-1 h-3.5 w-3.5" />;
+    return <ArrowUpDown className="inline-block ml-1 h-3.5 w-3.5 opacity-40 hover:opacity-100" />;
+  };
 
   // Metric counts
   const roleStats = useMemo(() => {
@@ -213,19 +286,19 @@ export default function MasterDataUsersPage() {
       admin: users.filter((u) => u.role === 'ADMIN').length,
       owner: users.filter((u) => u.role === 'OWNER').length,
       siteManager: users.filter((u) => u.role === 'SITE MANAGER').length,
-      management: users.filter((u) => u.role === 'MANAGEMENT').length
+      management: users.filter((u) => u.role === 'MANAGEMENT').length,
     };
   }, [users]);
 
-  // Toggle password visibility in table
+  // Toggle password visibility
   const togglePasswordVisibility = (id: string) => {
     setVisiblePasswords((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }));
   };
 
-  // Copy password to clipboard
+  // Copy password
   const handleCopyPassword = (id: string, pass: string) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(pass);
@@ -242,7 +315,7 @@ export default function MasterDataUsersPage() {
       username: '',
       fullName: '',
       password: '',
-      role: 'ADMIN'
+      role: 'ADMIN',
     });
     setShowModalPassword(false);
     setIsDialogOpen(true);
@@ -255,7 +328,7 @@ export default function MasterDataUsersPage() {
       username: user.username,
       fullName: user.fullName,
       password: user.password,
-      role: user.role
+      role: user.role,
     });
     setShowModalPassword(false);
     setIsDialogOpen(true);
@@ -274,7 +347,7 @@ export default function MasterDataUsersPage() {
   };
 
   // Submit Create or Edit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -288,7 +361,6 @@ export default function MasterDataUsersPage() {
       return;
     }
 
-    // Check duplicate username
     const isDuplicate = users.some(
       (u) => u.username.toLowerCase() === trimmedUsername && u.id !== editId
     );
@@ -298,99 +370,114 @@ export default function MasterDataUsersPage() {
       return;
     }
 
-    if (editId) {
-      // Update
-      const updated = users.map((u) =>
-        u.id === editId
-          ? {
-              ...u,
-              username: trimmedUsername,
-              fullName: trimmedFullName,
-              password: trimmedPassword,
-              role: formData.role
-            }
-          : u
-      );
-      saveUsers(updated);
-
-      if (isSupabaseConfigured && supabase) {
-        supabase
-          .from('users')
-          .update({
-            username: trimmedUsername,
-            name: trimmedFullName,
-            password: trimmedPassword,
-            role: formData.role
-          })
-          .eq('id', editId)
-          .then(({ error }) => {
-            if (error) console.warn('Supabase update user notice:', error.message);
-          });
-      }
-
-      toast.success('Data pengguna berhasil diperbarui!');
-    } else {
-      // Create
-      const newUser: SystemUser = {
-        id: `usr-${Date.now()}`,
+    try {
+      const res = await saveUserAction({
+        id: editId || undefined,
         username: trimmedUsername,
         fullName: trimmedFullName,
         password: trimmedPassword,
         role: formData.role,
-        createdAt: new Date().toISOString(),
-        status: 'ACTIVE'
-      };
-      saveUsers([newUser, ...users]);
+        status: 'ACTIVE',
+      });
 
-      if (isSupabaseConfigured && supabase) {
-        supabase
-          .from('users')
-          .insert([
-            {
-              username: trimmedUsername,
-              name: trimmedFullName,
-              password: trimmedPassword,
-              role: formData.role,
-              status: 'ACTIVE'
-            }
-          ])
-          .then(({ error }) => {
-            if (error) console.warn('Supabase insert user notice:', error.message);
-          });
+      if (!res.success || !res.data) {
+        toast.error(res.error || 'Gagal menyimpan data pengguna');
+        setIsSubmitting(false);
+        return;
       }
 
-      toast.success('Pengguna baru berhasil ditambahkan!');
-    }
+      if (editId) {
+        const updated = users.map((u) => (u.id === editId ? (res.data as SystemUser) : u));
+        saveUsersState(updated);
+        toast.success('Data pengguna berhasil diperbarui!');
+      } else {
+        const updated = [res.data as SystemUser, ...users];
+        saveUsersState(updated);
+        toast.success('Pengguna baru berhasil ditambahkan!');
+      }
 
-    setIsSubmitting(false);
-    setIsDialogOpen(false);
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Terjadi kesalahan saat menyimpan data pengguna');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Confirm Delete
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!userToDelete) return;
-    const updated = users.filter((u) => u.id !== userToDelete.id);
-    saveUsers(updated);
+    setIsSubmitting(true);
 
-    if (isSupabaseConfigured && supabase) {
-      supabase
-        .from('users')
-        .delete()
-        .eq('id', userToDelete.id)
-        .then(({ error }) => {
-          if (error) console.warn('Supabase delete user notice:', error.message);
-        });
+    try {
+      const res = await deleteUserAction(userToDelete.id, userToDelete.username);
+      if (!res.success) {
+        toast.error(res.error || 'Gagal menghapus pengguna');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const updated = users.filter((u) => u.id !== userToDelete.id);
+      saveUsersState(updated);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userToDelete.id);
+        return next;
+      });
+      toast.success(`Pengguna "${userToDelete.fullName}" berhasil dihapus.`);
+      setDeleteOpen(false);
+      setUserToDelete(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Terjadi kesalahan saat menghapus pengguna');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success(`Pengguna "${userToDelete.fullName}" berhasil dihapus.`);
-    setDeleteOpen(false);
-    setUserToDelete(null);
   };
 
-  // Reset to default seeds
-  const handleResetData = () => {
-    saveUsers(INITIAL_USERS);
-    toast.info('Data pengguna berhasil dikembalikan ke data awal.');
+
+  // Excel Handlers
+  const handleExport = async () => {
+    exportToExcel(filteredAndSortedUsers, 'Master_Data_Users', EXCEL_COLUMNS);
+    toast.success('File Excel berhasil diunduh');
+  };
+
+  const handleDownloadTemplate = () => {
+    downloadExcelTemplate(EXCEL_COLUMNS, 'Template_Master_Users', INITIAL_USERS.slice(0, 3));
+    toast.success('Template Excel berhasil diunduh');
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const parsed = await parseImportFile(file, EXCEL_COLUMNS);
+      if (parsed.length === 0) {
+        toast.error('File kosong atau format kolom tidak sesuai.');
+        return;
+      }
+      const validRows = parsed
+        .map((row) => ({
+          username: String(row.username || '').trim().toLowerCase(),
+          fullName: String(row.fullName || '').trim(),
+          password: String(row.password || 'admin123').trim(),
+          role: (row.role || 'ADMIN') as UserRole,
+          status: (row.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
+        }))
+        .filter((r) => r.username && r.fullName);
+
+      if (validRows.length === 0) {
+        toast.error('Tidak ada data valid dengan Username dan Nama Lengkap.');
+        return;
+      }
+
+      const res = await batchAddUsersAction(validRows);
+      if (res.success) {
+        toast.success(`Berhasil mengimpor ${res.count} pengguna.`);
+        await loadUsers();
+      } else {
+        toast.error(res.error || 'Gagal mengimpor pengguna');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memproses file');
+    }
   };
 
   // Render Role Badge
@@ -398,38 +485,33 @@ export default function MasterDataUsersPage() {
     switch (role) {
       case 'ADMIN':
         return (
-          <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900/50 hover:bg-red-500/20 font-semibold px-2.5 py-0.5 gap-1.5 shadow-none">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            ADMIN
+          <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900/50 hover:bg-red-500/20 font-semibold px-2 py-0.5 text-[11px] gap-1 shadow-none">
+            <ShieldCheck className="w-3 h-3" /> ADMIN
           </Badge>
         );
       case 'OWNER':
         return (
-          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-900/50 hover:bg-amber-500/20 font-semibold px-2.5 py-0.5 gap-1.5 shadow-none">
-            <Crown className="w-3.5 h-3.5" />
-            OWNER
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-900/50 hover:bg-amber-500/20 font-semibold px-2 py-0.5 text-[11px] gap-1 shadow-none">
+            <Crown className="w-3 h-3" /> OWNER
           </Badge>
         );
       case 'SITE MANAGER':
         return (
-          <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-900/50 hover:bg-blue-500/20 font-semibold px-2.5 py-0.5 gap-1.5 shadow-none">
-            <HardHat className="w-3.5 h-3.5" />
-            SITE MANAGER
+          <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-900/50 hover:bg-blue-500/20 font-semibold px-2 py-0.5 text-[11px] gap-1 shadow-none">
+            <HardHat className="w-3 h-3" /> SITE MANAGER
           </Badge>
         );
       case 'MANAGEMENT':
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900/50 hover:bg-emerald-500/20 font-semibold px-2.5 py-0.5 gap-1.5 shadow-none">
-            <Briefcase className="w-3.5 h-3.5" />
-            MANAGEMENT
+          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-900/50 hover:bg-emerald-500/20 font-semibold px-2 py-0.5 text-[11px] gap-1 shadow-none">
+            <Briefcase className="w-3 h-3" /> MANAGEMENT
           </Badge>
         );
       default:
-        return <Badge variant="outline">{role}</Badge>;
+        return <Badge variant="outline" className="text-[11px]">{role}</Badge>;
     }
   };
 
-  // User initial avatar
   const getAvatarInitials = (name: string) => {
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -439,8 +521,8 @@ export default function MasterDataUsersPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
+    <div className="w-full space-y-6 pb-12">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-5">
         <div>
           <div className="flex items-center gap-2">
@@ -451,26 +533,35 @@ export default function MasterDataUsersPage() {
               Master Data Pengguna
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-[13px] text-muted-foreground mt-1">
             Kelola data otentikasi login, username, nama lengkap, kata sandi, dan peranan pengguna sistem.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2">
+          <ExcelImportExport
+            onExport={handleExport}
+            onDownloadTemplate={handleDownloadTemplate}
+            onImport={handleImport}
+            isLoading={isLoadingData}
+          />
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetData}
-            title="Kembalikan data contoh awal"
-            className="text-muted-foreground hover:text-foreground h-10 px-3 gap-1.5 text-xs rounded-lg"
+            onClick={loadUsers}
+            disabled={isLoadingData}
+            title="Muat ulang dan sinkronkan dengan database server"
+            className="h-[32px] my-[6px] mx-[8px] px-2.5 gap-1.5 text-[13px]"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Reset Data
+            <RefreshCw className={`w-4 h-4 ${isLoadingData ? 'animate-spin' : ''}`} />
+            Sinkronkan
           </Button>
+
 
           <Button
             onClick={handleOpenCreate}
-            className="h-10 px-4 gap-2 font-medium shadow-sm rounded-lg flex-1 sm:flex-initial"
+            size="sm"
+            className="h-[32px] my-[6px] mx-[8px] px-3 gap-1.5 text-[13px] font-medium"
           >
             <UserPlus className="w-4 h-4" />
             Tambah Pengguna
@@ -478,12 +569,12 @@ export default function MasterDataUsersPage() {
         </div>
       </div>
 
-      {/* Metric Summary Cards */}
+      {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <Card className="bg-card border-border/70 shadow-xs">
+        <Card className="bg-card border border-border/60 shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Akun</p>
+              <p className="text-[13px] text-muted-foreground font-medium">Total Akun</p>
               <p className="text-2xl font-bold mt-1 text-foreground">{roleStats.total}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
@@ -492,10 +583,10 @@ export default function MasterDataUsersPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/70 shadow-xs">
+        <Card className="bg-card border border-border/60 shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Admin & Owner</p>
+              <p className="text-[13px] text-muted-foreground font-medium">Admin & Owner</p>
               <p className="text-2xl font-bold mt-1 text-foreground">
                 {roleStats.admin + roleStats.owner}
               </p>
@@ -506,10 +597,10 @@ export default function MasterDataUsersPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/70 shadow-xs">
+        <Card className="bg-card border border-border/60 shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Site Manager</p>
+              <p className="text-[13px] text-muted-foreground font-medium">Site Manager</p>
               <p className="text-2xl font-bold mt-1 text-foreground">{roleStats.siteManager}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
@@ -518,10 +609,10 @@ export default function MasterDataUsersPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border/70 shadow-xs">
+        <Card className="bg-card border border-border/60 shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Management</p>
+              <p className="text-[13px] text-muted-foreground font-medium">Management</p>
               <p className="text-2xl font-bold mt-1 text-foreground">{roleStats.management}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -532,201 +623,169 @@ export default function MasterDataUsersPage() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-card p-3 sm:p-4 rounded-xl border border-border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Cari nama lengkap atau username login..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 bg-background rounded-lg border-input text-sm"
-          />
-        </div>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-4.5 top-3.5 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari nama lengkap atau username..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-8 h-[32px] my-[6px] mx-[8px] text-[13px] bg-background"
+            />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <div className="w-full sm:w-[200px]">
-            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v || 'ALL')}>
-              <SelectTrigger className="h-10 rounded-lg border-input bg-background text-sm">
-                <div className="flex items-center gap-1.5 truncate">
-                  <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="Semua Peran (Role)" />
-                </div>
+          <div className="w-full sm:w-48">
+            <Select
+              value={roleFilter}
+              onValueChange={(v) => {
+                setRoleFilter(v || 'ALL');
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[32px] my-[6px] mx-[8px] text-[13px] bg-background">
+                <SelectValue placeholder="Semua Peran (Role)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Semua Peran (Role)</SelectItem>
-                <SelectItem value="ADMIN">ADMIN</SelectItem>
-                <SelectItem value="OWNER">OWNER</SelectItem>
-                <SelectItem value="SITE MANAGER">SITE MANAGER</SelectItem>
-                <SelectItem value="MANAGEMENT">MANAGEMENT</SelectItem>
+                <SelectItem value="ALL" className="text-[13px]">Semua Peran (Role)</SelectItem>
+                <SelectItem value="ADMIN" className="text-[13px]">ADMIN</SelectItem>
+                <SelectItem value="OWNER" className="text-[13px]">OWNER</SelectItem>
+                <SelectItem value="SITE MANAGER" className="text-[13px]">SITE MANAGER</SelectItem>
+                <SelectItem value="MANAGEMENT" className="text-[13px]">MANAGEMENT</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full sm:w-40">
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v || 'ALL');
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[32px] my-[6px] mx-[8px] text-[13px] bg-background">
+                <SelectValue placeholder="Semua Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-[13px]">Semua Status</SelectItem>
+                <SelectItem value="ACTIVE" className="text-[13px]">Aktif</SelectItem>
+                <SelectItem value="INACTIVE" className="text-[13px]">Non-Aktif</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
+
+        <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
+          <span className="text-[13px] text-muted-foreground whitespace-nowrap mx-[8px] my-[6px]">Urutkan:</span>
+          <Select
+            value={sortBy}
+            onValueChange={(val) => {
+              setSortBy(val || 'username-asc');
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-[32px] my-[6px] mx-[8px] w-48 text-[13px]">
+              <SelectValue placeholder="Urutkan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="username-asc" className="text-[13px]">Username (A-Z)</SelectItem>
+              <SelectItem value="username-desc" className="text-[13px]">Username (Z-A)</SelectItem>
+              <SelectItem value="fullName-asc" className="text-[13px]">Nama Lengkap (A-Z)</SelectItem>
+              <SelectItem value="fullName-desc" className="text-[13px]">Nama Lengkap (Z-A)</SelectItem>
+              <SelectItem value="role-asc" className="text-[13px]">Role (A-Z)</SelectItem>
+              <SelectItem value="role-desc" className="text-[13px]">Role (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Mobile Card List View (Tampil pada layar kecil / <= 640px, khususnya 390px) */}
-      <div className="block md:hidden space-y-3">
-        {filteredUsers.length === 0 ? (
-          <div className="text-center py-12 bg-card border rounded-xl p-6">
-            <Users className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-40" />
-            <p className="text-sm font-medium text-foreground">Tidak ada pengguna ditemukan</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Sesuaikan kata kunci pencarian atau tambah pengguna baru.
-            </p>
-          </div>
-        ) : (
-          filteredUsers.map((u) => {
-            const isVisible = !!visiblePasswords[u.id];
-            const isCopied = copiedId === u.id;
-
-            return (
-              <Card key={u.id} className="border-border/80 shadow-xs overflow-hidden">
-                <CardContent className="p-4 space-y-3.5">
-                  {/* Top: Avatar, Name & Role */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs border border-primary/20 shrink-0">
-                        {getAvatarInitials(u.fullName)}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-sm text-foreground leading-snug">
-                          {u.fullName}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">ID: {u.id}</p>
-                      </div>
-                    </div>
-                    <div>{renderRoleBadge(u.role)}</div>
-                  </div>
-
-                  {/* Attributes Grid */}
-                  <div className="bg-muted/30 p-3 rounded-lg border border-border/50 space-y-2 text-xs">
-                    {/* Username */}
-                    <div className="flex items-center justify-between py-0.5">
-                      <span className="text-muted-foreground">Username (Login):</span>
-                      <span className="font-semibold text-foreground bg-background px-2 py-0.5 rounded border border-border">
-                        @{u.username}
-                      </span>
-                    </div>
-
-                    {/* Password */}
-                    <div className="flex items-center justify-between py-0.5">
-                      <span className="text-muted-foreground">Password:</span>
-                      <div className="flex items-center gap-1.5 bg-background px-2 py-1 rounded border border-border">
-                        <span className="font-medium text-foreground">
-                          {isVisible ? u.password : '••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePasswordVisibility(u.id)}
-                          className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"
-                          title={isVisible ? 'Sembunyikan password' : 'Lihat password'}
-                        >
-                          {isVisible ? (
-                            <EyeOff className="w-3.5 h-3.5" />
-                          ) : (
-                            <Eye className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyPassword(u.id, u.password)}
-                          className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"
-                          title="Salin password"
-                        >
-                          {isCopied ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions Footer */}
-                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenEdit(u)}
-                      className="h-8 px-3 text-xs gap-1.5 rounded-lg border-input"
-                    >
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setUserToDelete(u);
-                        setDeleteOpen(true);
-                      }}
-                      className="h-8 px-3 text-xs gap-1.5 rounded-lg border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Hapus
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
-
-      {/* Desktop Table View (Tampil pada layar >= md / 768px) */}
-      <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden shadow-xs">
+      {/* Table Single Border (No Double Outline) */}
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-[60px] text-center">No.</TableHead>
-              <TableHead className="w-[240px]">Nama Lengkap</TableHead>
-              <TableHead className="w-[180px]">Username (Login)</TableHead>
-              <TableHead className="w-[200px]">Password</TableHead>
-              <TableHead className="w-[170px]">Peran (Role)</TableHead>
-              <TableHead className="w-[140px]">Status</TableHead>
-              <TableHead className="w-[100px] text-right">Aksi</TableHead>
+            <TableRow>
+              <TableHead className="w-12 px-3 text-[13px]">
+                <Checkbox
+                  checked={isAllCurrentPageSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Pilih semua baris"
+                />
+              </TableHead>
+              <TableHead
+                className="min-w-[200px] cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('fullName')}
+              >
+                Nama Lengkap {renderSortIcon('fullName')}
+              </TableHead>
+              <TableHead
+                className="w-44 cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('username')}
+              >
+                Username (Login) {renderSortIcon('username')}
+              </TableHead>
+              <TableHead className="w-48 text-[13px] font-semibold">Password</TableHead>
+              <TableHead
+                className="w-40 cursor-pointer select-none text-[13px] font-semibold"
+                onClick={() => handleSortToggle('role')}
+              >
+                Peran (Role) {renderSortIcon('role')}
+              </TableHead>
+              <TableHead className="w-28 text-center text-[13px] font-semibold">Status</TableHead>
+              <TableHead className="w-24 text-right pr-4 text-[13px] font-semibold">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {isLoadingData ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-44 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <Users className="w-9 h-9 mb-2 opacity-40" />
-                    <p className="font-medium text-sm text-foreground">
-                      Tidak ada pengguna ditemukan
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Gunakan kata kunci lain atau tambahkan akun pengguna baru.
-                    </p>
+                <TableCell colSpan={7} className="h-28 text-center text-[13px] text-muted-foreground">
+                  Memuat data pengguna...
+                </TableCell>
+              </TableRow>
+            ) : paginatedData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-[13px]">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <p>Tidak ada pengguna ditemukan dengan kriteria pencarian.</p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((u, idx) => {
+              paginatedData.map((u) => {
+                const isSelected = selectedIds.has(u.id);
                 const isVisible = !!visiblePasswords[u.id];
                 const isCopied = copiedId === u.id;
 
                 return (
-                  <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="text-center text-xs text-muted-foreground font-medium">
-                      {idx + 1}
+                  <TableRow
+                    key={u.id}
+                    data-state={isSelected ? 'selected' : undefined}
+                    className="hover:bg-muted/30 transition-colors text-[13px]"
+                  >
+                    <TableCell className="px-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectRow(u.id)}
+                        aria-label={`Pilih ${u.username}`}
+                      />
                     </TableCell>
 
                     {/* Full Name & Avatar */}
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs border border-primary/20 shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[12px] border border-primary/20 shrink-0">
                           {getAvatarInitials(u.fullName)}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-semibold text-sm text-foreground leading-tight">
+                          <span className="font-semibold text-[13px] text-foreground leading-tight">
                             {u.fullName}
                           </span>
-                          <span className="text-[11px] text-muted-foreground mt-0.5">
-                            ID: {u.id}
+                          <span className="text-[12px] text-muted-foreground font-mono mt-0.5">
+                            {u.id}
                           </span>
                         </div>
                       </div>
@@ -734,8 +793,8 @@ export default function MasterDataUsersPage() {
 
                     {/* Username */}
                     <TableCell>
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/80 text-xs font-semibold text-foreground">
-                        <span className="text-muted-foreground font-normal">@</span>
+                      <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-muted/60 border border-border/80 text-[13px] font-mono font-medium text-foreground">
+                        <span className="text-muted-foreground">@</span>
                         {u.username}
                       </div>
                     </TableCell>
@@ -743,7 +802,7 @@ export default function MasterDataUsersPage() {
                     {/* Password */}
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <div className="px-2.5 py-1 rounded-md bg-muted/50 border border-border/80 text-xs font-medium text-foreground tracking-wider min-w-[100px]">
+                        <div className="px-2.5 py-1 rounded bg-muted/50 border border-border/80 text-[13px] font-mono text-foreground tracking-wider min-w-[80px]">
                           {isVisible ? u.password : '••••••••'}
                         </div>
                         <Button
@@ -751,28 +810,20 @@ export default function MasterDataUsersPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => togglePasswordVisibility(u.id)}
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-foreground"
                           title={isVisible ? 'Sembunyikan password' : 'Tampilkan password'}
                         >
-                          {isVisible ? (
-                            <EyeOff className="w-3.5 h-3.5" />
-                          ) : (
-                            <Eye className="w-3.5 h-3.5" />
-                          )}
+                          {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => handleCopyPassword(u.id, u.password)}
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-foreground"
                           title="Salin password"
                         >
-                          {isCopied ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
+                          {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                         </Button>
                       </div>
                     </TableCell>
@@ -781,24 +832,30 @@ export default function MasterDataUsersPage() {
                     <TableCell>{renderRoleBadge(u.role)}</TableCell>
 
                     {/* Status */}
-                    <TableCell>
-                      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Aktif
-                      </span>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant="outline"
+                        className={`text-[12px] font-medium px-2.5 py-0.5 ${
+                          u.status === 'ACTIVE'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                            : 'text-zinc-600 bg-zinc-100 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-400'
+                        }`}
+                      >
+                        {u.status === 'ACTIVE' ? 'Aktif' : 'Non-Aktif'}
+                      </Badge>
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="text-right">
+                    <TableCell className="text-right pr-4">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleOpenEdit(u)}
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-primary"
                           title="Edit Pengguna"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil className="w-4 h-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -807,10 +864,10 @@ export default function MasterDataUsersPage() {
                             setUserToDelete(u);
                             setDeleteOpen(true);
                           }}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          className="h-[32px] w-[32px] text-muted-foreground hover:text-destructive"
                           title="Hapus Pengguna"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     </TableCell>
@@ -822,32 +879,38 @@ export default function MasterDataUsersPage() {
         </Table>
       </div>
 
-      {/* Modal Dialog: Tambah / Edit Pengguna */}
+      {/* Pagination Footer */}
+      <DataTablePagination
+        totalItems={filteredAndSortedUsers.length}
+        pageSize={pageSize}
+        currentPage={page}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        selectedCount={selectedIds.size}
+      />
+
+      {/* Modal Dialog: Tambah / Edit */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-                  {editId ? <Pencil className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                </div>
+              <DialogTitle className="flex items-center gap-2 text-[16px] font-semibold">
                 {editId ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-[13px]">
                 {editId
-                  ? 'Perbarui informasi username login, nama lengkap, password, atau peranan.'
+                  ? 'Perbarui informasi login, nama lengkap, password, atau peranan.'
                   : 'Lengkapi 4 data utama pengguna untuk hak akses login sistem.'}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              {/* Field 1: Username */}
+            <div className="grid gap-3 py-3">
               <div className="grid gap-1.5">
-                <Label htmlFor="input-username" className="text-xs font-semibold">
+                <Label htmlFor="input-username" className="text-[13px] font-semibold">
                   1. Username (Untuk Login) <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[13px]">
                     @
                   </span>
                   <Input
@@ -858,18 +921,14 @@ export default function MasterDataUsersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, username: e.target.value.replace(/\s+/g, '') })
                     }
-                    className="pl-7 h-10 rounded-lg text-sm"
+                    className="pl-7 h-[32px] text-[13px] font-mono"
                     required
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Digunakan untuk otentikasi login masuk sistem. Huruf kecil tanpa spasi.
-                </p>
               </div>
 
-              {/* Field 2: Full Name */}
               <div className="grid gap-1.5">
-                <Label htmlFor="input-fullname" className="text-xs font-semibold">
+                <Label htmlFor="input-fullname" className="text-[13px] font-semibold">
                   2. Full Name (Nama Lengkap) <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -878,21 +937,20 @@ export default function MasterDataUsersPage() {
                   placeholder="misal: Budi Santoso, S.T."
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="h-10 rounded-lg text-sm"
+                  className="h-[32px] text-[13px]"
                   required
                 />
               </div>
 
-              {/* Field 3: Password */}
               <div className="grid gap-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="input-password" className="text-xs font-semibold">
+                  <Label htmlFor="input-password" className="text-[13px] font-semibold">
                     3. Password (Kata Sandi) <span className="text-red-500">*</span>
                   </Label>
                   <button
                     type="button"
                     onClick={generateRandomPassword}
-                    className="text-[11px] text-primary hover:underline font-medium"
+                    className="text-[12px] text-primary hover:underline font-medium"
                   >
                     Acak Password
                   </button>
@@ -904,7 +962,7 @@ export default function MasterDataUsersPage() {
                     placeholder="Masukkan password akun..."
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="pr-10 h-10 rounded-lg text-sm"
+                    className="pr-10 h-[32px] text-[13px] font-mono"
                     required
                   />
                   <button
@@ -913,18 +971,13 @@ export default function MasterDataUsersPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     title={showModalPassword ? 'Sembunyikan password' : 'Lihat password'}
                   >
-                    {showModalPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
+                    {showModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {/* Field 4: Role */}
               <div className="grid gap-1.5">
-                <Label htmlFor="select-role" className="text-xs font-semibold">
+                <Label htmlFor="select-role" className="text-[13px] font-semibold">
                   4. Role (Hak Akses Peran) <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -933,37 +986,21 @@ export default function MasterDataUsersPage() {
                     if (val) setFormData({ ...formData, role: val as UserRole });
                   }}
                 >
-                  <SelectTrigger id="select-role" className="h-10 rounded-lg text-sm bg-background">
+                  <SelectTrigger id="select-role" className="h-[32px] text-[13px] bg-background">
                     <SelectValue placeholder="Pilih Role Pengguna" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-red-600" />
-                        <span className="font-medium">ADMIN</span>
-                        <span className="text-xs text-muted-foreground">- Hak akses penuh sistem</span>
-                      </div>
+                    <SelectItem value="ADMIN" className="text-[13px]">
+                      ADMIN - Hak akses penuh sistem
                     </SelectItem>
-                    <SelectItem value="OWNER">
-                      <div className="flex items-center gap-2">
-                        <Crown className="w-4 h-4 text-amber-600" />
-                        <span className="font-medium">OWNER</span>
-                        <span className="text-xs text-muted-foreground">- Pemilik proyek / eksekutif</span>
-                      </div>
+                    <SelectItem value="OWNER" className="text-[13px]">
+                      OWNER - Pemilik proyek / eksekutif
                     </SelectItem>
-                    <SelectItem value="SITE MANAGER">
-                      <div className="flex items-center gap-2">
-                        <HardHat className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium">SITE MANAGER</span>
-                        <span className="text-xs text-muted-foreground">- Manajer lapangan & progress harian</span>
-                      </div>
+                    <SelectItem value="SITE MANAGER" className="text-[13px]">
+                      SITE MANAGER - Manajer lapangan & progress
                     </SelectItem>
-                    <SelectItem value="MANAGEMENT">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-emerald-600" />
-                        <span className="font-medium">MANAGEMENT</span>
-                        <span className="text-xs text-muted-foreground">- Pengawasan finansial & operasional</span>
-                      </div>
+                    <SelectItem value="MANAGEMENT" className="text-[13px]">
+                      MANAGEMENT - Pengawasan finansial & operasional
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -974,13 +1011,14 @@ export default function MasterDataUsersPage() {
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => setIsDialogOpen(false)}
                 disabled={isSubmitting}
-                className="h-10 rounded-lg text-sm"
+                className="h-[32px] text-[13px]"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="h-10 rounded-lg text-sm gap-2">
+              <Button type="submit" size="sm" disabled={isSubmitting} className="h-[32px] text-[13px]">
                 {editId ? 'Simpan Perubahan' : 'Tambah Pengguna'}
               </Button>
             </DialogFooter>
@@ -990,33 +1028,35 @@ export default function MasterDataUsersPage() {
 
       {/* Modal Dialog: Konfirmasi Hapus */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 flex items-center justify-center mb-2">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <DialogTitle>Konfirmasi Hapus Pengguna</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-[16px] font-semibold text-destructive flex items-center gap-2">
+              <Trash2 className="w-4 h-4" />
+              Hapus Pengguna
+            </DialogTitle>
+            <DialogDescription className="text-[13px] pt-1">
               Apakah Anda yakin ingin menghapus akun pengguna{' '}
               <strong className="text-foreground">{userToDelete?.fullName}</strong> (
               <span className="text-muted-foreground">@{userToDelete?.username}</span>)?
               Tindakan ini tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4 gap-2 sm:gap-0">
+          <DialogFooter className="pt-2 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => setDeleteOpen(false)}
-              className="h-10 rounded-lg"
+              className="h-[32px] text-[13px]"
             >
               Batal
             </Button>
             <Button
               type="button"
               variant="destructive"
+              size="sm"
               onClick={handleConfirmDelete}
-              className="h-10 rounded-lg"
+              className="h-[32px] text-[13px]"
             >
               Ya, Hapus Pengguna
             </Button>

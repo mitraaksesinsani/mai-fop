@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FolderKanban,
@@ -23,18 +23,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useProject, Project } from '@/context/ProjectContext';
-import { useBowheer } from '@/context/BowheerContext';
+import { useBowheer, Bowheer } from '@/context/BowheerContext';
 import { toast } from 'sonner';
 
+const AVAILABLE_PROJECT_MANAGERS = [
+  { name: 'Budi Santoso, S.T.', role: 'Site Manager' },
+  { name: 'Dedi Mulyadi', role: 'Site Manager' },
+  { name: 'Ahmad Hidayat', role: 'Project Manager' },
+  { name: 'Dewi Lestari, S.E.', role: 'Project Controller' },
+];
+
 export default function ProjectsPage() {
-  const { projects, addProject, updateProject, deleteProject, selectedProjectId, setSelectedProjectId } = useProject();
-  const { activeBowheers } = useBowheer();
   const router = useRouter();
+  const { projects, addProject, updateProject, deleteProject } = useProject();
+  const { bowheers } = useBowheer();
+  const activeBowheers = useMemo(() => bowheers.filter((b: Bowheer) => b.status === 'ACTIVE'), [bowheers]);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
@@ -44,11 +52,11 @@ export default function ProjectsPage() {
     name: '',
     customer: 'PT Telkomsel Tbk',
     type: 'Backbone Fiber',
-    location: '',
+    location: 'DKI Jakarta',
     contractNo: '',
     startDate: new Date().toISOString().split('T')[0],
-    targetDate: '',
-    manager: '',
+    targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    manager: 'Budi Santoso, S.T.',
   });
   const [editProjectData, setEditProjectData] = useState<Partial<Project>>({});
 
@@ -63,21 +71,31 @@ export default function ProjectsPage() {
       ? newProjectData.id.trim()
       : `PRJ-2026-00${projects.length + 1}`;
 
+    const newUuid = crypto.randomUUID();
     const createdProj: Project = {
-      id: crypto.randomUUID(),
-      name: newProjectData.name,
+      id: newUuid,
+      name: newProjectData.name.trim(),
       customer: newProjectData.customer || 'PT Telkomsel Tbk',
       type: newProjectData.type || 'Backbone Fiber',
-      location: newProjectData.location || 'Indonesia',
-      contractNo: newProjectData.contractNo ? `${autoId} | ${newProjectData.contractNo}` : autoId,
-      startDate: newProjectData.startDate,
-      targetDate: newProjectData.targetDate || '2026-12-31',
-      manager: newProjectData.manager || 'Project Manager',
+      location: newProjectData.location?.trim() || 'Indonesia',
+      contractNo: newProjectData.contractNo?.trim() || autoId,
+      startDate: newProjectData.startDate || new Date().toISOString().split('T')[0],
+      targetDate: newProjectData.targetDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      manager: newProjectData.manager || 'Budi Santoso, S.T.',
       status: 'Planning',
     };
 
+    // Inisialisasi item designator kosong agar pengguna dapat mengisi designator sendiri dari nol
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`proper_project_designators_${newUuid}`, JSON.stringify([]));
+      } catch (err) {
+        console.warn('Failed to set initial designators', err);
+      }
+    }
+
     addProject(createdProj);
-    toast.success(`Project ${createdProj.id} (${createdProj.name}) berhasil dibuat!`);
+    toast.success(`Proyek ${createdProj.contractNo || autoId} (${createdProj.name}) berhasil dibuat!`);
     setIsCreateModalOpen(false);
 
     // Reset Form
@@ -86,11 +104,11 @@ export default function ProjectsPage() {
       name: '',
       customer: 'PT Telkomsel Tbk',
       type: 'Backbone Fiber',
-      location: '',
+      location: 'Jawa Tengah',
       contractNo: '',
       startDate: new Date().toISOString().split('T')[0],
-      targetDate: '',
-      manager: '',
+      targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      manager: 'Budi Santoso, S.T.',
     });
   };
 
@@ -197,12 +215,12 @@ export default function ProjectsPage() {
                       >
                         <SelectTrigger id="projCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                         <SelectContent>
-                          {activeBowheers.map((b) => (
+                          {activeBowheers.map((b: Bowheer) => (
                             <SelectItem key={b.id} value={b.name}>
                               {b.name} {b.code ? `(${b.code})` : ''}
                             </SelectItem>
                           ))}
-                          {newProjectData.customer && !activeBowheers.some((b) => b.name === newProjectData.customer) && (
+                          {newProjectData.customer && !activeBowheers.some((b: Bowheer) => b.name === newProjectData.customer) && (
                             <SelectItem value={newProjectData.customer}>{newProjectData.customer}</SelectItem>
                           )}
                           <SelectItem value="Lainnya">Lainnya</SelectItem>
@@ -264,12 +282,24 @@ export default function ProjectsPage() {
                     
                     <div className="space-y-2 col-span-2 md:col-span-3">
                       <Label htmlFor="projManager">Project Manager (PIC)</Label>
-                      <Input
-                        id="projManager"
-                        placeholder="e.g. Budi Santoso"
+                      <Select
                         value={newProjectData.manager}
-                        onChange={(e) => setNewProjectData({ ...newProjectData, manager: e.target.value })}
-                      />
+                        onValueChange={(val) => setNewProjectData({ ...newProjectData, manager: val || undefined })}
+                      >
+                        <SelectTrigger id="projManager">
+                          <SelectValue placeholder="Pilih Project Manager / PIC" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
+                            <SelectItem key={pm.name} value={pm.name}>
+                              {pm.name} ({pm.role})
+                            </SelectItem>
+                          ))}
+                          {newProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === newProjectData.manager) && (
+                            <SelectItem value={newProjectData.manager}>{newProjectData.manager}</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <DialogFooter className="pt-4 border-t">
@@ -412,12 +442,12 @@ export default function ProjectsPage() {
                 >
                   <SelectTrigger id="editCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                   <SelectContent>
-                    {activeBowheers.map((b) => (
+                    {activeBowheers.map((b: Bowheer) => (
                       <SelectItem key={b.id} value={b.name}>
                         {b.name} {b.code ? `(${b.code})` : ''}
                       </SelectItem>
                     ))}
-                    {editProjectData.customer && !activeBowheers.some((b) => b.name === editProjectData.customer) && (
+                    {editProjectData.customer && !activeBowheers.some((b: Bowheer) => b.name === editProjectData.customer) && (
                       <SelectItem value={editProjectData.customer}>{editProjectData.customer}</SelectItem>
                     )}
                     <SelectItem value="Lainnya">Lainnya</SelectItem>
@@ -457,11 +487,24 @@ export default function ProjectsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editManager">Project Manager (PIC)</Label>
-                <Input
-                  id="editManager"
+                <Select
                   value={editProjectData.manager || ''}
-                  onChange={(e) => setEditProjectData({ ...editProjectData, manager: e.target.value })}
-                />
+                  onValueChange={(val) => setEditProjectData({ ...editProjectData, manager: val || undefined })}
+                >
+                  <SelectTrigger id="editManager">
+                    <SelectValue placeholder="Pilih Project Manager / PIC" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
+                      <SelectItem key={pm.name} value={pm.name}>
+                        {pm.name} ({pm.role})
+                      </SelectItem>
+                    ))}
+                    {editProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === editProjectData.manager) && (
+                      <SelectItem value={editProjectData.manager}>{editProjectData.manager}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editStatus">Status</Label>

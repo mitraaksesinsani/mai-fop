@@ -72,56 +72,7 @@ export interface Project {
   progressLogs?: DailyProgressLog[];
 }
 
-export const DEFAULT_PROJECTS: Project[] = [
-  {
-    id: 'PRJ-2026-001',
-    name: 'Backbone Fiber Jakarta - Bandung',
-    customer: 'PT Telkomsel Tbk',
-    type: 'Backbone Fiber',
-    location: 'DKI Jakarta & Jawa Barat',
-    contractNo: 'CTR/TEL/2026/089',
-    startDate: '2026-01-15',
-    targetDate: '2026-06-30',
-    manager: 'Budi Santoso',
-    status: 'Implementation',
-  },
-  {
-    id: 'PRJ-2026-002',
-    name: 'Metro Ring Surabaya East',
-    customer: 'PT Indosat Tbk',
-    type: 'Metro Fiber',
-    location: 'Surabaya, Jawa Timur',
-    contractNo: 'CTR/ISAT/2026/042',
-    startDate: '2026-02-01',
-    targetDate: '2026-05-15',
-    manager: 'Siti Rahma',
-    status: 'Survey',
-  },
-  {
-    id: 'PRJ-2026-003',
-    name: 'FTTx Access Cluster Medan Center',
-    customer: 'PT XL Axiata Tbk',
-    type: 'FTTx',
-    location: 'Medan, Sumatera Utara',
-    contractNo: 'CTR/XL/2026/104',
-    startDate: '2026-03-10',
-    targetDate: '2026-07-20',
-    manager: 'Ahmad Hidayat',
-    status: 'DRM',
-  },
-  {
-    id: 'PRJ-2026-004',
-    name: 'Enterprise Link Bank Mandiri HQ',
-    customer: 'Bank Mandiri',
-    type: 'Enterprise Fiber',
-    location: 'Jakarta Selatan',
-    contractNo: 'CTR/BM/2026/012',
-    startDate: '2026-02-15',
-    targetDate: '2026-04-10',
-    manager: 'Dewi Lestari',
-    status: 'Commissioning',
-  },
-];
+export const DEFAULT_PROJECTS: Project[] = [];
 
 interface ProjectContextType {
   projects: Project[];
@@ -143,6 +94,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [selectedProjectId, setSelectedProjectIdState] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const isDummyProject = (p: any): boolean => {
+    if (!p || !p.name) return true;
+    const name = (p.name || '').toLowerCase();
+    const contract = (p.contractNo || '').toLowerCase();
+    const id = (p.id || '').toLowerCase();
+    return (
+      name.includes('sdsd') ||
+      name.includes('qqqq') ||
+      name.includes('qwqw') ||
+      name.includes('asdasd') ||
+      name.includes('dummy') ||
+      name.includes('test 123') ||
+      contract.includes('sdsd') ||
+      id === 'prj-001' ||
+      id === 'prj-002' ||
+      id === 'prj-003' ||
+      id === 'prj-004'
+    );
+  };
+
   useEffect(() => {
     // Load active project ID
     const savedId = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -154,50 +125,33 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const fetchRealData = async () => {
       setIsLoading(true);
       const res = await getProjects();
-      const isInitialized = typeof window !== 'undefined' && localStorage.getItem('nims_db_initialized') === 'true';
 
       if (res.success && res.data) {
-        if (res.data.length > 0) {
-          setProjects(res.data as Project[]);
-          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(res.data));
+        const cleanData = (res.data as Project[]).filter((p) => !isDummyProject(p));
+        if (cleanData.length > 0) {
+          setProjects(cleanData);
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(cleanData));
           localStorage.setItem('nims_db_initialized', 'true');
-          if (!savedId && res.data.length > 0) {
-            setSelectedProjectIdState(res.data[0].id);
+          if (!savedId || !cleanData.some((p) => p.id === savedId)) {
+            setSelectedProjectIdState(cleanData[0].id);
           }
-        } else if (isInitialized) {
-          // If database is empty and user already interacted/deleted items, show empty
+        } else {
+          // Database kosong: biarkan list proyek kosong bersih!
           setProjects([]);
           localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify([]));
-        } else {
-          // First time launch: use local storage or default sample projects
-          const localSaved = localStorage.getItem(PROJECTS_STORAGE_KEY);
-          if (localSaved) {
-            try {
-              const parsed = JSON.parse(localSaved);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setProjects(parsed);
-                setIsLoading(false);
-                return;
-              }
-            } catch (e) {
-              // Ignore parse error
-            }
-          }
-          setProjects(DEFAULT_PROJECTS);
-          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(DEFAULT_PROJECTS));
           localStorage.setItem('nims_db_initialized', 'true');
-          if (!savedId && DEFAULT_PROJECTS.length > 0) {
-            setSelectedProjectIdState(DEFAULT_PROJECTS[0].id);
-          }
+          setSelectedProjectIdState('');
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
       } else {
-        // Fallback to local storage or initial sample projects
+        // Fallback jika offline
         const localSaved = localStorage.getItem(PROJECTS_STORAGE_KEY);
         if (localSaved) {
           try {
             const parsed = JSON.parse(localSaved);
             if (Array.isArray(parsed)) {
-              setProjects(parsed);
+              const filtered = parsed.filter((p) => !isDummyProject(p));
+              setProjects(filtered);
               setIsLoading(false);
               return;
             }
@@ -205,10 +159,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             // Ignore parse error
           }
         }
-        setProjects(DEFAULT_PROJECTS);
-        if (!savedId && DEFAULT_PROJECTS.length > 0) {
-          setSelectedProjectIdState(DEFAULT_PROJECTS[0].id);
-        }
+        setProjects([]);
+        setSelectedProjectIdState('');
       }
       setIsLoading(false);
     };

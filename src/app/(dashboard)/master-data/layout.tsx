@@ -13,7 +13,7 @@ export default function MasterDataLayout({ children }: { children: React.ReactNo
     // If auth is loaded and user exists, allow ADMIN or users with appropriate access
     if (!isLoading && user) {
       const userRole = user.role?.toUpperCase();
-      if (userRole && userRole !== 'ADMIN' && userRole !== 'OWNER' && userRole !== 'MANAGEMENT') {
+      if (userRole && userRole !== 'ADMIN' && userRole !== 'MANAGEMENT') {
         router.replace('/');
       }
     }

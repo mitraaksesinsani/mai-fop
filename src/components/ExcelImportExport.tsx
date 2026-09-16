@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Download, Loader2 } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ExcelImportExportProps {
@@ -42,16 +42,16 @@ export function ExcelImportExport({ onImport, onExport, onDownloadTemplate, isLo
     <div className="flex items-center gap-2">
       <input
         type="file"
-        accept=".xlsx, .xls"
+        accept=".xlsx, .xls, .csv"
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileChange}
       />
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center">
         <Button 
           variant="outline" 
           size="sm" 
-          className="gap-2 h-9" 
+          className="gap-1.5 h-[32px] my-[6px] mx-[8px] text-[13px] font-medium" 
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading || importing}
         >
@@ -61,7 +61,7 @@ export function ExcelImportExport({ onImport, onExport, onDownloadTemplate, isLo
         <Button 
           variant="outline" 
           size="sm" 
-          className="gap-2 h-9" 
+          className="gap-1.5 h-[32px] my-[6px] mx-[8px] text-[13px] font-medium" 
           onClick={handleExport}
           disabled={isLoading || exporting}
         >
@@ -69,11 +69,13 @@ export function ExcelImportExport({ onImport, onExport, onDownloadTemplate, isLo
           Export
         </Button>
         <Button 
-          variant="ghost" 
+          variant="outline" 
           size="sm" 
-          className="text-muted-foreground text-xs h-9" 
+          className="gap-1.5 h-[32px] my-[6px] mx-[8px] text-[13px] font-medium text-muted-foreground hover:text-foreground" 
           onClick={onDownloadTemplate}
+          disabled={isLoading}
         >
+          <FileSpreadsheet className="w-4 h-4" />
           Template
         </Button>
       </div>

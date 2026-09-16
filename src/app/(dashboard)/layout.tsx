@@ -17,7 +17,21 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !user && pathname !== '/login') {
-      router.push('/login');
+      const redirectTarget = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : '/login';
+      router.push(redirectTarget);
+      return;
+    }
+
+    // Pembatasan akses untuk role OWNER: Hanya fitur Dashboard (/) dan Preview Proyek (/preview/*)
+    if (!isLoading && user && user.role?.toUpperCase() === 'OWNER') {
+      const isAllowedForOwner =
+        pathname === '/' ||
+        pathname.startsWith('/preview') ||
+        pathname.startsWith('/profile');
+
+      if (!isAllowedForOwner) {
+        router.replace('/');
+      }
     }
   }, [user, isLoading, router, pathname]);
 

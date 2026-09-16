@@ -23,7 +23,10 @@ import {
   DesignatorItem,
   calculateOverallProjectProgress,
   generateSCurveData,
+  generateProgressDates,
 } from '@/lib/designatorProgress';
+
+import { toast } from 'sonner';
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -66,24 +69,51 @@ export default function ProjectDetailPage() {
         pixelRatio: 2,
       });
       
-      if (blob) {
+      if (!blob) {
+        throw new Error('Blob gambar kosong');
+      }
+
+      let copied = false;
+
+      // Cek apakah dokumen sedang fokus dan clipboard API didukung sebelum memanggil write
+      // Ini mencegah browser melempar Console NotAllowedError: Document is not focused
+      const isDocumentFocused = typeof document !== 'undefined' && typeof document.hasFocus === 'function' && document.hasFocus();
+      const hasClipboardSupport = typeof navigator !== 'undefined' && Boolean(navigator?.clipboard?.write) && typeof ClipboardItem !== 'undefined';
+
+      if (isDocumentFocused && hasClipboardSupport) {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
           ]);
+          copied = true;
           setExportText('Tersalin!');
+          toast.success('Gambar laporan berhasil disalin ke clipboard');
           setTimeout(() => setExportText('Copy Data'), 3000);
-        } catch (err) {
-          console.error('Gagal menyalin gambar', err);
-          setExportText('Gagal Menyalin');
-          setTimeout(() => setExportText('Copy Data'), 3000);
+        } catch {
+          // Jika browser menolak akses clipboard, biarkan lanjut ke fallback download
+          copied = false;
         }
-      } else {
-        throw new Error('Blob is null');
+      }
+
+      // Fallback otomatis jika clipboard tidak fokus atau tidak diizinkan
+      if (!copied) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = project?.name ? project.name.replace(/[^a-zA-Z0-9_-]/g, '_') : (project?.id || 'Project');
+        a.download = `Laporan_Harian_${safeName}_${new Date().toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setExportText('Diunduh!');
+        toast.info('Dokumen tidak fokus untuk clipboard. Gambar laporan otomatis diunduh sebagai file PNG.');
+        setTimeout(() => setExportText('Copy Data'), 3000);
       }
     } catch (err) {
-      console.error('Gagal membuat gambar', err);
+      console.error('Gagal membuat gambar laporan', err);
       setExportText('Gagal Export');
+      toast.error('Gagal mengekspor gambar laporan');
       setTimeout(() => setExportText('Copy Data'), 3000);
     } finally {
       setIsExporting(false);
@@ -120,7 +150,7 @@ export default function ProjectDetailPage() {
   const project = projects.find((p) => p.id === decodedId);
 
   const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>(
-    (project as any)?.designatorItems || DEFAULT_DESIGNATOR_ITEMS
+    (project as any)?.designatorItems || []
   );
 
   useEffect(() => {
@@ -129,11 +159,13 @@ export default function ProjectDetailPage() {
       const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
       if (saved) {
         setDesignatorItems(JSON.parse(saved));
+      } else {
+        setDesignatorItems((project as any)?.designatorItems || []);
       }
     } catch (err) {
       console.error("Failed to load designator items", err);
     }
-  }, [decodedId]);
+  }, [decodedId, project]);
 
   const handleUpdateDesignatorItems = (items: DesignatorItem[]) => {
     setDesignatorItems(items);
@@ -146,26 +178,7 @@ export default function ProjectDetailPage() {
 
   const progressMetrics = calculateOverallProjectProgress(designatorItems);
   const progressDates = useMemo(() => {
-    if (project?.startDate && project?.targetDate) {
-      const start = new Date(project.startDate);
-      const end = new Date(project.targetDate);
-      const dates = [];
-      let current = new Date(start);
-      let count = 0;
-      while (current <= end && count < 1000) {
-        dates.push(current.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
-        current.setDate(current.getDate() + 1);
-        count++;
-      }
-      if (dates.length > 0) return dates;
-    }
-    const fallback = [];
-    const current = new Date();
-    for (let i = 0; i < 14; i++) {
-      fallback.push(current.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
-      current.setDate(current.getDate() + 1);
-    }
-    return fallback;
+    return generateProgressDates(project?.startDate, project?.targetDate);
   }, [project?.startDate, project?.targetDate]);
 
   const sCurveData = generateSCurveData(designatorItems, progressDates);
@@ -1228,6 +1241,8 @@ export default function ProjectDetailPage() {
                   <CumulativeProgressTable
                     items={designatorItems}
                     onUpdateItems={handleUpdateDesignatorItems}
+                    projectStartDate={project?.startDate}
+                    projectEndDate={project?.targetDate}
                   />
                 </div>
               </div>

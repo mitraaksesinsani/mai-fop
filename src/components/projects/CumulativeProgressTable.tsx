@@ -55,12 +55,14 @@ import {
   getVolumeTotal,
   getProgressPercent,
   ChangeLogEntry,
+  toISODateString,
+  formatDisplayDate,
+  getItemDailyVolume,
 } from "@/lib/designatorProgress";
 import { History, Pencil, User } from "lucide-react";
 import { toast } from "sonner";
 
-import { MASTER_DESIGNATOR_DATA } from "@/app/(dashboard)/master-data/designator/page";
-import { MASTER_ALAT_KERJA_DATA } from "@/app/(dashboard)/master-data/alat-kerja/page";
+import { MASTER_DESIGNATOR_DATA, MASTER_ALAT_KERJA_DATA } from "@/lib/constants/masterData";
 
 interface CumulativeProgressTableProps {
   items: DesignatorItem[];
@@ -74,12 +76,15 @@ interface CumulativeProgressTableProps {
 
 const JENIS_OPTIONS: (JenisPekerjaan | "Semua Jenis")[] = [
   "Semua Jenis",
-  "Kabel",
-  "Jointing",
-  "Manhole",
   "Galian",
+  "Kabel",
+  "Tiang",
+  "Jembatan",
+  "Handhole",
   "Terminasi",
-  "Aksesoris",
+  "Uji Terima (UT)",
+  "Commisioning Test (CT)",
+  "BA Rekon",
 ];
 
 const SATUAN_OPTIONS: SatuanPekerjaan[] = [
@@ -94,6 +99,8 @@ const SATUAN_OPTIONS: SatuanPekerjaan[] = [
   "titik",
   "lumpsum",
   "batang",
+  "link",
+  "dokumen",
 ];
 
 export default function CumulativeProgressTable({
@@ -116,38 +123,45 @@ export default function CumulativeProgressTable({
   const [isDeleteItemModalOpen, setIsDeleteItemModalOpen] = useState(false);
 
   const progressDates = useMemo(() => {
+    const datesSet = new Set<string>();
+
     if (projectStartDate && projectEndDate) {
-      const start = new Date(projectStartDate);
-      const end = new Date(projectEndDate);
-      const dates = [];
-      let current = new Date(start);
-      // safety check to prevent infinite loop or huge arrays
-      let count = 0;
-      while (current <= end && count < 1000) {
-        dates.push(
-          current.toLocaleDateString("id-ID", {
-            day: "2-digit",
-            month: "2-digit",
-          }),
-        );
-        current.setDate(current.getDate() + 1);
-        count++;
+      const start = new Date(projectStartDate.split('T')[0]);
+      const end = new Date(projectEndDate.split('T')[0]);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+        let current = new Date(start);
+        let count = 0;
+        while (current <= end && count < 1000) {
+          datesSet.add(toISODateString(current));
+          current.setDate(current.getDate() + 1);
+          count++;
+        }
       }
-      if (dates.length > 0) return dates;
     }
-    const fallback = [];
-    const current = new Date();
-    for (let i = 0; i < 14; i++) {
-      fallback.push(
-        current.toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "2-digit",
-        }),
-      );
-      current.setDate(current.getDate() + 1);
+
+    // Sertakan juga tanggal-tanggal yang pernah tercatat di dailyVolumes
+    items.forEach((item) => {
+      if (item.dailyVolumes) {
+        Object.keys(item.dailyVolumes).forEach((d) => {
+          if (d.includes('-') && d.length === 10) {
+            datesSet.add(d);
+          }
+        });
+      }
+    });
+
+    if (datesSet.size === 0) {
+      const current = new Date();
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(current);
+        d.setDate(current.getDate() + i);
+        datesSet.add(toISODateString(d));
+      }
     }
-    return fallback;
-  }, [projectStartDate, projectEndDate]);
+
+    return Array.from(datesSet).sort();
+  }, [projectStartDate, projectEndDate, items]);
+
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<DesignatorItem | null>(null);
   const [actionReason, setActionReason] = useState("");
@@ -165,7 +179,7 @@ export default function CumulativeProgressTable({
     idVolume: `VOL-00${items.length + 1}`,
     designator: "",
     namaDeskripsi: "",
-    jenis: "Kabel",
+    jenis: "Galian",
     satuan: "Meter",
     bobotPersen: 15,
     volumeTarget: 1000,
@@ -175,7 +189,7 @@ export default function CumulativeProgressTable({
   const [selectedIdVolume, setSelectedIdVolume] = useState<string>(
     items[0]?.idVolume || "",
   );
-  const [selectedDate, setSelectedDate] = useState<string>("08/09");
+  const [selectedDate, setSelectedDate] = useState<string>(() => toISODateString(new Date()));
   const [inputVolume, setInputVolume] = useState<number>(0);
   const [selectedAlatKerja, setSelectedAlatKerja] = useState<string>("");
   const [selectedMandor, setSelectedMandor] = useState<string>("");
@@ -399,18 +413,24 @@ export default function CumulativeProgressTable({
   // Badge warna untuk Jenis Pekerjaan
   const getJenisBadgeClass = (jenis: JenisPekerjaan) => {
     switch (jenis) {
+      case "Galian":
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800";
       case "Kabel":
         return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800";
-      case "Jointing":
-        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800";
-      case "Manhole":
-        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800";
-      case "Galian":
-        return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800";
+      case "Tiang":
+        return "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-900/50 dark:text-slate-300 dark:border-slate-700";
+      case "Jembatan":
+        return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/30 dark:text-cyan-400 dark:border-cyan-800";
+      case "Handhole":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800";
       case "Terminasi":
+        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800";
+      case "Uji Terima (UT)":
         return "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-400 dark:border-teal-800";
-      case "Aksesoris":
+      case "Commisioning Test (CT)":
         return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800";
+      case "BA Rekon":
+        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -701,22 +721,14 @@ export default function CumulativeProgressTable({
                   <Label className="text-[10pt] font-medium">
                     Tanggal Progress
                   </Label>
-                  <Select value={selectedDate} onValueChange={(val) => setSelectedDate(val || "")}>
-                    <SelectTrigger className="text-[10pt]">
-                      <SelectValue placeholder="Pilih Tanggal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {progressDates.map((date) => (
-                        <SelectItem
-                          key={date}
-                          value={date}
-                          className="text-[10pt]"
-                        >
-                          {date}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="date-progress"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    required
+                    className="text-[10pt]"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label
@@ -1005,19 +1017,26 @@ export default function CumulativeProgressTable({
 
                     {/* KOLOM-KOLOM TANGGAL (Scroll ke kanan, isinya hanya angka) */}
                     {progressDates.map((dt) => {
-                      const isToday = dt === "08/09";
+                      const todayStr = toISODateString(new Date());
+                      const isToday = dt === todayStr;
+                      const formatted = formatDisplayDate(dt);
                       return (
                         <TableHead
                           key={dt}
-                          className={`font-semibold px-2 py-3 text-center w-[65px] min-w-[65px] border-r ${
+                          className={`font-semibold px-2 py-2 text-center w-[75px] min-w-[75px] border-r ${
                             isToday
                               ? "bg-blue-100/60 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold"
                               : "text-foreground/80"
                           }`}
                         >
-                          {dt}
+                          <div className="text-[10pt] leading-tight">{formatted.label}</div>
+                          {formatted.subLabel && (
+                            <div className="text-[8.5pt] font-normal text-muted-foreground leading-none mt-0.5">
+                              {formatted.subLabel}
+                            </div>
+                          )}
                           {isToday && (
-                            <div className="text-[9px] font-normal leading-none mt-0.5">
+                            <div className="text-[8.5pt] font-medium text-blue-600 dark:text-blue-400 leading-none mt-0.5">
                               Hari Ini
                             </div>
                           )}
@@ -1102,8 +1121,9 @@ export default function CumulativeProgressTable({
 
                           {/* KOLOM TANGGAL (Cuma angka volume harian) */}
                           {progressDates.map((dt) => {
-                            const val = item.dailyVolumes?.[dt] || 0;
-                            const isToday = dt === "08/09";
+                            const val = getItemDailyVolume(item, dt);
+                            const todayStr = toISODateString(new Date());
+                            const isToday = dt === todayStr;
 
                             return (
                               <TableCell
@@ -1338,8 +1358,10 @@ export default function CumulativeProgressTable({
                         </div>
                         <div className="flex gap-1.5 overflow-x-auto pb-1 text-[10pt] no-scrollbar">
                           {progressDates.map((dt) => {
-                            const val = item.dailyVolumes?.[dt] || 0;
-                            const isToday = dt === "08/09";
+                            const val = getItemDailyVolume(item, dt);
+                            const todayStr = toISODateString(new Date());
+                            const isToday = dt === todayStr;
+                            const formatted = formatDisplayDate(dt);
                             return (
                               <div
                                 key={dt}
@@ -1352,7 +1374,7 @@ export default function CumulativeProgressTable({
                                 }`}
                               >
                                 <div className="text-[9px] text-muted-foreground leading-none mb-0.5">
-                                  {dt}
+                                  {formatted.label}
                                 </div>
                                 <div className="text-[10pt] leading-none">
                                   {val > 0 ? val.toLocaleString() : "-"}
