@@ -179,31 +179,30 @@ function Sidebar({
  )
  }
 
- if (isMobile) {
- return (
- <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
- <SheetContent
- dir={dir}
- data-sidebar="sidebar"
- data-slot="sidebar"
- data-mobile="true"
- className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
- style={
- {
- "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
- } as React.CSSProperties
- }
- side={side}
- >
- <SheetHeader className="sr-only">
- <SheetTitle>Sidebar</SheetTitle>
- <SheetDescription>Displays the mobile sidebar.</SheetDescription>
- </SheetHeader>
- <div className="flex h-full w-full flex-col">{children}</div>
- </SheetContent>
- </Sheet>
- )
- }
+  if (isMobile) {
+    return (
+      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        <SheetContent
+          dir={dir}
+          data-sidebar="sidebar"
+          data-slot="sidebar"
+          data-mobile="true"
+          className="inset-x-0 bottom-0 w-full max-h-[85vh] rounded-t-2xl border-t bg-sidebar p-0 text-sidebar-foreground shadow-2xl overflow-hidden [&>button]:hidden flex flex-col gap-0 border-border/80 transition-all duration-300"
+          side="bottom"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Sidebar</SheetTitle>
+            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+          </SheetHeader>
+          {/* Drag handle pill khas mobile bottom drawer */}
+          <div className="w-full flex items-center justify-center pt-3 pb-1.5 shrink-0 bg-sidebar">
+            <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+          </div>
+          <div className="flex h-full w-full flex-col overflow-y-auto min-h-0">{children}</div>
+        </SheetContent>
+      </Sheet>
+    )
+  }
 
  return (
  <div

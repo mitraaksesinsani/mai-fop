@@ -14,10 +14,10 @@ export type JenisPekerjaan =
 
 export const JENIS_PEKERJAAN_LIST: readonly JenisPekerjaan[] = [
   'Galian',
+  'Handhole',
   'Kabel',
   'Tiang',
   'Jembatan',
-  'Handhole',
   'Terminasi',
   'Uji Terima (UT)',
   'Commisioning Test (CT)',
@@ -390,3 +390,188 @@ export function generateSCurveData(items: DesignatorItem[], progressDates: strin
 
   return curvePoints;
 }
+
+export interface GroupSummaryItem {
+  name: string; // misal 'Galian', 'Handhole', 'Kabel'
+  itemCount: number;
+  totalBobot: number; // total bobot (%) grup terhadap proyek
+  totalVolumeTarget: number;
+  totalVolumeActual: number;
+  primaryUnit: string;
+  actualPercent: number; // realisasi progres grup (0 - 100%)
+  targetPercent: number;
+  deviation: number;
+  items: DesignatorItem[];
+}
+
+export const STANDARD_GROUP_DEFAULTS: Record<string, { primaryUnit: string; defaultBobot: number }> = {
+  'Galian': { primaryUnit: 'Meter', defaultBobot: 15 },
+  'Handhole': { primaryUnit: 'unit', defaultBobot: 7 },
+  'Kabel': { primaryUnit: 'Meter', defaultBobot: 25 },
+  'Tiang': { primaryUnit: 'batang', defaultBobot: 15 },
+  'Jembatan': { primaryUnit: 'Meter', defaultBobot: 8 },
+  'Terminasi': { primaryUnit: 'core', defaultBobot: 10 },
+  'Uji Terima (UT)': { primaryUnit: 'link', defaultBobot: 8 },
+  'Commisioning Test (CT)': { primaryUnit: 'link', defaultBobot: 7 },
+  'BA Rekon': { primaryUnit: 'dokumen', defaultBobot: 5 },
+};
+
+// Helper kalkulasi ringkasan semua grup pekerjaan dari daftar designator
+export function getGroupSummaryList(items: DesignatorItem[]): GroupSummaryItem[] {
+  const groupMap = new Map<string, DesignatorItem[]>();
+
+  // Selalu inisialisasi semua grup standar terlebih dahulu
+  JENIS_PEKERJAAN_LIST.forEach((g) => {
+    groupMap.set(g, []);
+  });
+
+  // Masukkan item-item yang ada ke grup yang sesuai
+  items.forEach((item) => {
+    const rawKey = (item.jenis || item.type || '').trim();
+    // Cocokkan ke standard jika ada
+    const matchedStandard = (JENIS_PEKERJAAN_LIST as readonly string[]).find(
+      (g) => g.toLowerCase() === rawKey.toLowerCase()
+    );
+    const key = matchedStandard || rawKey || 'Lainnya';
+    if (!groupMap.has(key)) {
+      groupMap.set(key, []);
+    }
+    groupMap.get(key)!.push(item);
+  });
+
+  const summaryList: GroupSummaryItem[] = [];
+
+  groupMap.forEach((groupItems, groupName) => {
+    if (groupItems.length === 0) {
+      const def = STANDARD_GROUP_DEFAULTS[groupName];
+      summaryList.push({
+        name: groupName,
+        itemCount: 0,
+        totalBobot: def?.defaultBobot || 0,
+        totalVolumeTarget: 0,
+        totalVolumeActual: 0,
+        primaryUnit: def?.primaryUnit || 'Meter',
+        actualPercent: 0,
+        targetPercent: 68.5,
+        deviation: -68.5,
+        items: [],
+      });
+      return;
+    }
+
+    let totalBobot = 0;
+    let totalWeightedActual = 0;
+    let totalVolumeTarget = 0;
+    let totalVolumeActual = 0;
+    const unitCounts: Record<string, number> = {};
+
+    groupItems.forEach((item) => {
+      totalBobot += item.bobotPersen || 0;
+      const targetVol = item.volumeTarget || item.boqVolume || 0;
+      const actVol = getVolumeTotal(item);
+      totalVolumeTarget += targetVol;
+      totalVolumeActual += actVol;
+
+      const pct = getProgressPercent(item);
+      totalWeightedActual += (pct * (item.bobotPersen || 0));
+
+      const u = item.satuan || item.unit || 'Meter';
+      unitCounts[u] = (unitCounts[u] || 0) + 1;
+    });
+
+    // Cari unit yang paling dominan di grup ini
+    let primaryUnit = STANDARD_GROUP_DEFAULTS[groupName]?.primaryUnit || 'Meter';
+    let maxCount = -1;
+    Object.entries(unitCounts).forEach(([u, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        primaryUnit = u;
+      }
+    });
+
+    const actualPercent = totalBobot > 0 
+      ? parseFloat((totalWeightedActual / totalBobot).toFixed(2)) 
+      : 0;
+    const targetPercent = 68.5; // Baseline rata-rata
+    const deviation = parseFloat((actualPercent - targetPercent).toFixed(2));
+
+    summaryList.push({
+      name: groupName,
+      itemCount: groupItems.length,
+      totalBobot: parseFloat(totalBobot.toFixed(2)),
+      totalVolumeTarget,
+      totalVolumeActual,
+      primaryUnit,
+      actualPercent,
+      targetPercent,
+      deviation,
+      items: groupItems,
+    });
+  });
+
+  // Urutkan grup berdasarkan urutan standar JENIS_PEKERJAAN_LIST
+  return summaryList.sort((a, b) => {
+    const idxA = (JENIS_PEKERJAAN_LIST as readonly string[]).indexOf(a.name);
+    const idxB = (JENIS_PEKERJAAN_LIST as readonly string[]).indexOf(b.name);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+// Helper kalkulasi progres untuk satu grup pekerjaan tertentu
+export function calculateGroupProgress(
+  items: DesignatorItem[],
+  groupName: string
+): {
+  targetPercent: number;
+  actualPercent: number;
+  deviation: number;
+  totalBobot: number;
+} {
+  const groupItems = items.filter(
+    (item) => (item.jenis || item.type || '').trim().toLowerCase() === groupName.trim().toLowerCase()
+  );
+
+  if (groupItems.length === 0) {
+    const def = STANDARD_GROUP_DEFAULTS[groupName];
+    return { targetPercent: 68.5, actualPercent: 0, deviation: -68.5, totalBobot: def?.defaultBobot || 0 };
+  }
+
+  let totalWeightedActual = 0;
+  let totalBobot = 0;
+
+  groupItems.forEach((item) => {
+    const pct = getProgressPercent(item);
+    totalWeightedActual += (pct * (item.bobotPersen || 0));
+    totalBobot += item.bobotPersen || 0;
+  });
+
+  const actualPercent = totalBobot > 0 ? totalWeightedActual / totalBobot : 0;
+  const targetPercent = 68.5;
+  const roundedActual = parseFloat(actualPercent.toFixed(2));
+  const deviation = parseFloat((roundedActual - targetPercent).toFixed(2));
+
+  return {
+    targetPercent,
+    actualPercent: roundedActual,
+    deviation,
+    totalBobot: parseFloat(totalBobot.toFixed(2)),
+  };
+}
+
+// Generator Kurva S khusus untuk satu grup pekerjaan
+export function generateGroupSCurveData(
+  items: DesignatorItem[],
+  progressDates: string[],
+  groupName: string
+): SCurvePoint[] {
+  const groupItems = items.filter(
+    (item) => (item.jenis || item.type || '').trim().toLowerCase() === groupName.trim().toLowerCase()
+  );
+
+  if (groupItems.length === 0) return [];
+  return generateSCurveData(groupItems, progressDates);
+}
+

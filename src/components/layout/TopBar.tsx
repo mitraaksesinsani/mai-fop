@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Bell,
-  Search,
   LogOut,
   User,
   Settings,
   ChevronDown,
 } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -58,16 +56,8 @@ export default function TopBar() {
 
   return (
     <header className="h-16 shrink-0 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center gap-4 flex-1 max-w-md">
+      <div className="flex items-center gap-4">
         <SidebarTrigger className="-ml-2" />
-        <div className="relative w-full">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Cari data proyek, BOQ, PO..."
-            className="w-full pl-9 bg-muted/50 focus-visible:bg-background"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-4">

@@ -35,6 +35,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Collapsible,
@@ -75,6 +76,11 @@ const globalNavigation: NavGroup[] = [
   {
     group: 'Projects',
     items: [
+      {
+        label: 'Project List',
+        href: '/project-list',
+        icon: FolderKanban,
+      },
       {
         label: 'Project Master List',
         href: '/projects',
@@ -124,7 +130,7 @@ const globalNavigation: NavGroup[] = [
   },
 ];
 
-function NavCollapsible({ item, pathname, counts }: { item: any, pathname: string, counts: any }) {
+function NavCollapsible({ item, pathname, counts, onItemClick }: { item: any, pathname: string, counts: any, onItemClick?: () => void }) {
   const isItemActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
   const [open, setOpen] = React.useState(isItemActive);
 
@@ -169,6 +175,7 @@ function NavCollapsible({ item, pathname, counts }: { item: any, pathname: strin
               <SidebarMenuSubItem key={child.label}>
                 <SidebarMenuSubButton 
                   isActive={pathname === child.href}
+                  onClick={onItemClick}
                   render={<Link href={child.href} />}
                 >
                   <span>{child.label}</span>
@@ -186,7 +193,14 @@ function NavCollapsible({ item, pathname, counts }: { item: any, pathname: strin
 export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [counts, setCounts] = React.useState<any>({ approvals: 0 });
+
+  const handleItemClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const isOwner = user?.role?.toUpperCase() === 'OWNER';
 
@@ -200,6 +214,11 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
               label: 'Dashboard',
               href: '/',
               icon: LayoutDashboard,
+            },
+            {
+              label: 'Project List',
+              href: '/project-list',
+              icon: FolderKanban,
             },
           ],
         },
@@ -261,6 +280,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
                         item={item} 
                         pathname={pathname} 
                         counts={counts}
+                        onItemClick={handleItemClick}
                       />
                     );
                   }
@@ -273,6 +293,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
                       <SidebarMenuButton 
                         isActive={isActive} 
                         tooltip={item.label}
+                        onClick={handleItemClick}
                         render={<Link href={item.href} />}
                       >
                         <Icon />

@@ -22,10 +22,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Pembatasan akses untuk role OWNER: Hanya fitur Dashboard (/) dan Preview Proyek (/preview/*)
+    // Pembatasan akses untuk role OWNER: Fitur Dashboard (/), Project List (/project-list/*), Preview Proyek (/preview/*), dan Profile
     if (!isLoading && user && user.role?.toUpperCase() === 'OWNER') {
       const isAllowedForOwner =
         pathname === '/' ||
+        pathname.startsWith('/project-list') ||
         pathname.startsWith('/preview') ||
         pathname.startsWith('/profile');
 
