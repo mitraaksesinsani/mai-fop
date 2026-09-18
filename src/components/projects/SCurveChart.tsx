@@ -43,13 +43,13 @@ export default function SCurveChart({
   const isAhead = deviation >= 0;
 
   return (
-    <Card className="border-0 shadow-none ring-1 ring-border/50 bg-card overflow-hidden transition-all duration-300">
+    <Card className="py-0 gap-0 border-0 shadow-none ring-1 ring-border/50 bg-card overflow-hidden transition-all duration-300">
       <CardHeader className={`bg-muted/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${!isCollapsed ? 'border-b' : ''}`}>
         <div>
           <div className="flex items-center gap-2">
               <CardTitle className="text-base font-semibold">Kurva S (S-Curve Progress Monitoring)</CardTitle>
               {isCollapsed && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 m-[6px]">
                   Disembunyikan
                 </Badge>
               )}
@@ -60,23 +60,23 @@ export default function SCurveChart({
           </div>
 
         {/* Ringkasan Metrik Cepat & Tombol Collapse/Expand */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50 text-[10pt]">
+        <div className="flex items-center flex-wrap">
+          <div className="bg-muted/40 px-[8px] py-[6px] my-[6px] mx-[8px] rounded-[7px] border border-border/50 text-[10pt]">
             <span className="text-muted-foreground mr-1.5">Target:</span>
             <span className="font-semibold text-blue-600 dark:text-blue-400">{targetPercent}%</span>
           </div>
-          <div className="bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50 text-[10pt]">
+          <div className="bg-muted/40 px-[8px] py-[6px] my-[6px] mx-[8px] rounded-[7px] border border-border/50 text-[10pt]">
             <span className="text-muted-foreground mr-1.5">Aktual:</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">{actualPercent}%</span>
           </div>
           {targetPercent === 0 && actualPercent === 0 ? (
-            <Badge variant="outline" className="text-[10pt] px-2.5 py-1 font-medium bg-muted text-muted-foreground border-border">
+            <Badge variant="outline" className="text-[10pt] px-[8px] py-[6px] my-[6px] mx-[8px] rounded-[7px] h-auto font-medium bg-muted text-muted-foreground border-border">
               Belum Dimulai (0%)
             </Badge>
           ) : (
             <Badge
               variant="outline"
-              className={`text-[10pt] px-2.5 py-1 font-medium flex items-center gap-1 ${
+              className={`text-[10pt] px-[8px] py-[6px] my-[6px] mx-[8px] rounded-[7px] h-auto font-medium flex items-center gap-1 ${
                 isAhead
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800'
                   : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800'
@@ -101,7 +101,7 @@ export default function SCurveChart({
             variant="outline"
             size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-8 text-[10pt] px-2.5 gap-1.5 font-medium ml-1"
+            className="h-auto text-[10pt] px-[8px] py-[6px] my-[6px] mx-[8px] rounded-[7px] gap-1.5 font-medium"
           >
             {isCollapsed ? (
               <>
@@ -130,9 +130,6 @@ export default function SCurveChart({
                   <TrendingUp className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground">Grafik Kurva S Belum Tersedia</h4>
-                <p className="text-[10pt] text-muted-foreground max-w-md">
-                  Proyek ini baru dibuat dan belum memiliki item pekerjaan atau volume target. Tambahkan item pekerjaan di tabel rekapitulasi di bawah untuk mulai memantau target dan realisasi progress.
-                </p>
               </div>
             ) : isMounted ? (
               <ResponsiveContainer width="100%" height="100%">

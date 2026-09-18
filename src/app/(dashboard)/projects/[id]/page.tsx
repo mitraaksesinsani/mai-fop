@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import SCurveChart from '@/components/projects/SCurveChart';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 import CumulativeProgressTable from '@/components/projects/CumulativeProgressTable';
 import {
   DEFAULT_DESIGNATOR_ITEMS,
@@ -24,6 +26,8 @@ import {
   calculateOverallProjectProgress,
   generateSCurveData,
   generateProgressDates,
+  toISODateString,
+  formatDisplayDate,
 } from '@/lib/designatorProgress';
 
 import { toast } from 'sonner';
@@ -54,6 +58,9 @@ export default function ProjectDetailPage() {
     router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
   };
 
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark' || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+
   // Export State
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -64,9 +71,17 @@ export default function ProjectDetailPage() {
     setIsExporting(true);
     setExportText('Menyalin...');
     try {
+      const isDarkMode = resolvedTheme === 'dark' || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+      const bgColor = isDarkMode ? '#111318' : '#ffffff';
+
       const blob = await htmlToImage.toBlob(reportRef.current, {
-        backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        backgroundColor: bgColor,
+        pixelRatio: 2, // 300 DPI 2x se-HD mungkin
+        cacheBust: true,
+        quality: 0.95,
+        style: {
+          color: isDarkMode ? '#f8fafc' : '#0f172a',
+        },
       });
       
       if (!blob) {
@@ -76,7 +91,6 @@ export default function ProjectDetailPage() {
       let copied = false;
 
       // Cek apakah dokumen sedang fokus dan clipboard API didukung sebelum memanggil write
-      // Ini mencegah browser melempar Console NotAllowedError: Document is not focused
       const isDocumentFocused = typeof document !== 'undefined' && typeof document.hasFocus === 'function' && document.hasFocus();
       const hasClipboardSupport = typeof navigator !== 'undefined' && Boolean(navigator?.clipboard?.write) && typeof ClipboardItem !== 'undefined';
 
@@ -87,10 +101,9 @@ export default function ProjectDetailPage() {
           ]);
           copied = true;
           setExportText('Tersalin!');
-          toast.success('Gambar laporan berhasil disalin ke clipboard');
+          toast.success('Gambar laporan HD berhasil disalin ke clipboard');
           setTimeout(() => setExportText('Copy Data'), 3000);
         } catch {
-          // Jika browser menolak akses clipboard, biarkan lanjut ke fallback download
           copied = false;
         }
       }
@@ -101,13 +114,13 @@ export default function ProjectDetailPage() {
         const a = document.createElement('a');
         a.href = url;
         const safeName = project?.name ? project.name.replace(/[^a-zA-Z0-9_-]/g, '_') : (project?.id || 'Project');
-        a.download = `Laporan_Harian_${safeName}_${new Date().toISOString().slice(0, 10)}.png`;
+        a.download = `Laporan_Harian_${safeName}_${selectedReportDate}.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         setExportText('Diunduh!');
-        toast.info('Dokumen tidak fokus untuk clipboard. Gambar laporan otomatis diunduh sebagai file PNG.');
+        toast.info('Gambar laporan HD otomatis diunduh sebagai file PNG.');
         setTimeout(() => setExportText('Copy Data'), 3000);
       }
     } catch (err) {
@@ -182,6 +195,175 @@ export default function ProjectDetailPage() {
   }, [project?.startDate, project?.targetDate]);
 
   const sCurveData = generateSCurveData(designatorItems, progressDates);
+
+  // Tanggal Terpilih Laporan Harian (Daily Progress)
+  const [selectedReportDate, setSelectedReportDate] = useState<string>(() => {
+    return toISODateString(new Date());
+  });
+
+  // Minggu Ke dihitung dari project.startDate sampai selectedReportDate
+  const weekNumber = useMemo(() => {
+    if (!project?.startDate) return 1;
+    const start = new Date(project.startDate.split('T')[0]);
+    const current = new Date(selectedReportDate);
+    if (isNaN(start.getTime()) || isNaN(current.getTime())) return 1;
+    const diffTime = current.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 1;
+    return Math.floor(diffDays / 7) + 1;
+  }, [project?.startDate, selectedReportDate]);
+
+  // Tanggal Mulai dan Target TOC terformat
+  const startDateFormatted = useMemo(() => {
+    if (!project?.startDate) return '22-Okt-2025';
+    return formatDisplayDate(project.startDate).fullDate;
+  }, [project?.startDate]);
+
+  const targetDateFormatted = useMemo(() => {
+    if (!project?.targetDate) return '-';
+    return formatDisplayDate(project.targetDate).fullDate;
+  }, [project?.targetDate]);
+
+  // Sisa Hari Kalender dihitung dari selectedReportDate sampai project.targetDate
+  const remainingCalendarDays = useMemo(() => {
+    if (!project?.targetDate) return '-';
+    const target = new Date(project.targetDate.split('T')[0]);
+    const current = new Date(selectedReportDate);
+    if (isNaN(target.getTime()) || isNaN(current.getTime())) return '-';
+    const diffTime = target.getTime() - current.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? `${diffDays} Hari` : `${Math.abs(diffDays)} Hari (Terlewat)`;
+  }, [project?.targetDate, selectedReportDate]);
+
+  // Rekapitulasi Data Tabel Berdasarkan Tanggal yang Dipilih
+  const dailySummaryRows = useMemo(() => {
+    const jobCategories: {
+      name: string;
+      matcher: (item: DesignatorItem) => boolean;
+      defaultUnit: string;
+    }[] = [
+      {
+        name: 'Pekerjaan Galian',
+        matcher: (item) => item.jenis === 'Galian',
+        defaultUnit: 'Meter',
+      },
+      {
+        name: 'Pekerjaan Jembatan',
+        matcher: (item) => item.jenis === 'Jembatan',
+        defaultUnit: 'Meter',
+      },
+      {
+        name: 'Pekerjaan Handhole (HH)',
+        matcher: (item) => item.jenis === 'Handhole',
+        defaultUnit: 'Unit',
+      },
+      {
+        name: 'Progres Penarikan Kabel',
+        matcher: (item) => item.jenis === 'Kabel',
+        defaultUnit: 'Meter',
+      },
+      {
+        name: 'Penyambungan/Jointing',
+        matcher: (item) => item.jenis === 'Terminasi' || item.jenis === 'Jointing',
+        defaultUnit: 'Titik',
+      },
+    ];
+
+    return jobCategories.map((cat) => {
+      const matchedItems = designatorItems.filter(cat.matcher);
+      const unit = matchedItems[0]?.satuan || cat.defaultUnit;
+      const volumeBOQ = matchedItems.reduce((acc, it) => acc + (Number(it.volumeTarget) || 0), 0);
+
+      let volumeKemarin = 0;
+      let volumeHariIni = 0;
+
+      matchedItems.forEach((it) => {
+        if (it.dailyVolumes) {
+          Object.entries(it.dailyVolumes).forEach(([dKey, vol]) => {
+            const num = Number(vol) || 0;
+            if (dKey < selectedReportDate) {
+              volumeKemarin += num;
+            } else if (dKey === selectedReportDate) {
+              volumeHariIni += num;
+            }
+          });
+        }
+      });
+
+      const volumeSekarang = volumeKemarin + volumeHariIni;
+      const volumeSisa = Math.max(0, volumeBOQ - volumeSekarang);
+      const projectDurationDays = progressDates.length || 30;
+      const rencanaHariIni = volumeBOQ > 0 ? Math.round(volumeBOQ / projectDurationDays) : 0;
+
+      return {
+        job: cat.name,
+        unit,
+        volumeKemarin,
+        volumeHariIni,
+        rencanaHariIni,
+        volumeSekarang,
+        volumeBOQ,
+        volumeSisa,
+      };
+    });
+  }, [designatorItems, selectedReportDate, progressDates]);
+
+  // Catatan Kendala & Solusi pada Tanggal yang Dipilih
+  const currentDailyNotes = useMemo(() => {
+    const storageKey = `project_daily_notes_${decodedId}_${selectedReportDate}`;
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.kendala || parsed.solusi) {
+          return {
+            kendala: parsed.kendala || '-',
+            solusi: parsed.solusi || '-',
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    let kList: string[] = [];
+    let sList: string[] = [];
+    designatorItems.forEach((it) => {
+      const recs = it.dailyRecords?.[selectedReportDate];
+      if (recs && recs.length > 0) {
+        recs.forEach((r) => {
+          if (r.kendala && !kList.includes(r.kendala)) kList.push(r.kendala);
+          if (r.solusi && !sList.includes(r.solusi)) sList.push(r.solusi);
+        });
+      }
+    });
+
+    return {
+      kendala: kList.length > 0 ? kList.join('; ') : '-',
+      solusi: sList.length > 0 ? sList.join('; ') : '-',
+    };
+  }, [decodedId, selectedReportDate, designatorItems]);
+
+  // Info Lapangan (Mandor & Alat Berat) pada Tanggal yang Dipilih
+  const currentDayFieldInfo = useMemo(() => {
+    let mandors: string[] = [];
+    let alatKerjaList: string[] = [];
+
+    designatorItems.forEach((it) => {
+      const recs = it.dailyRecords?.[selectedReportDate];
+      if (recs && recs.length > 0) {
+        recs.forEach((r) => {
+          if (r.mandor && !mandors.includes(r.mandor)) mandors.push(r.mandor);
+          if (r.alatKerja && !alatKerjaList.includes(r.alatKerja)) alatKerjaList.push(r.alatKerja);
+        });
+      }
+    });
+
+    return {
+      tenagaKerja: mandors.length > 0 ? `${mandors.join(', ')} (${mandors.length * 8} Orang)` : '26 Orang',
+      alatBerat: alatKerjaList.length > 0 ? alatKerjaList.join(', ') : '-',
+    };
+  }, [designatorItems, selectedReportDate]);
 
   // Derived values
   const totalBOQ = project?.boqItems?.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) || 0;
@@ -312,184 +494,6 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            {/* Status Kemajuan Fase Proyek (Project Phase Status) */}
-            <Card className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0">
-              <CardHeader className="bg-muted/10 p-4 border-b">
-                <CardTitle className="text-lg">Status & Kemajuan Fase Proyek</CardTitle>
-                <CardDescription>Ringkasan status pekerjaan dari perencanaan hingga serah terima.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 bg-muted/5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Phase 1 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                          <Activity className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold">Engineering Planning</div>
-                      </div>
-                      <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400">Aktif</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt]">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total BOQ:</span>
-                        <span className="font-medium">{project.boqItems?.length || 0} Items</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Est. Nilai RAB:</span>
-                        <span className="font-medium">Rp {((project.boqItems || []).reduce((sum, item) => sum + (item.quantity * item.price), 0)).toLocaleString('id-ID')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Panjang Rute:</span>
-                        <span className="font-medium">24.5 km</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 2 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                          <ClipboardCheck className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold">Survey Management</div>
-                      </div>
-                      <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400">Pending</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt]">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Titik Koordinat:</span>
-                        <span className="font-medium text-amber-600">Menunggu</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">File KML/KMZ:</span>
-                        <span className="font-medium">Belum Diunggah</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status Izin:</span>
-                        <span className="font-medium text-amber-600">Draft</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 3 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-300 dark:bg-slate-700"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                          <FileCheck className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">DRM Approval</div>
-                      </div>
-                      <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt] opacity-60">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tanggal Submit:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Reviewer:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status Dokumen:</span>
-                        <span className="font-medium">N/A</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 4 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-300 dark:bg-slate-700"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                          <Hammer className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Implementation</div>
-                      </div>
-                      <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt] opacity-60">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Progress Fisik:</span>
-                        <span className="font-medium">0%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tim Instalasi:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Issue Terbuka:</span>
-                        <span className="font-medium">0</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 5 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-300 dark:bg-slate-700"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                          <Zap className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Commissioning</div>
-                      </div>
-                      <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt] opacity-60">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Hasil Tes OTDR:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Defect:</span>
-                        <span className="font-medium">0</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">BA Uji Terima:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 6 */}
-                  <div className="p-4 rounded-xl border bg-card hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-300 dark:bg-slate-700"></div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                          <Flag className="w-4 h-4" />
-                        </div>
-                        <div className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Closing & Handover</div>
-                      </div>
-                      <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">Not Started</Badge>
-                    </div>
-                    <div className="space-y-2 text-[10pt] opacity-60">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tgl Handover:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Final CAPEX:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status BAST:</span>
-                        <span className="font-medium">-</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 
@@ -1062,6 +1066,7 @@ export default function ProjectDetailPage() {
                   projectStartDate={project?.startDate}
                   projectEndDate={project?.targetDate}
                   requireReasonForAdd={false}
+                  projectId={decodedId}
                 />
               </div>
             </TabsContent>
@@ -1092,7 +1097,7 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="issues" className="flex-none">Issue & Risk Control</TabsTrigger>
             </TabsList>
             <TabsContent value="daily">
-              <Card ref={reportRef} className="border-0 shadow-none ring-1 ring-border/50 p-0 gap-0 bg-card">
+              <Card ref={reportRef} className={cn("border-0 shadow-none ring-1 ring-border/50 p-0 gap-0 bg-card", isDark && "dark bg-[#111318] text-foreground")}>
                 <CardHeader className="bg-muted/10 p-4 border-b flex flex-row items-center justify-between" data-html2canvas-ignore="false">
                   <div className="flex items-center gap-4">
                     <div className="relative w-12 h-12 shrink-0">
@@ -1130,11 +1135,11 @@ export default function ProjectDetailPage() {
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Jumlah Tenaga Kerja</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">26 Orang</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{currentDayFieldInfo.tenagaKerja}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Jumlah Alat Berat</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">-</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{currentDayFieldInfo.alatBerat}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Hujan</Label>
@@ -1144,62 +1149,72 @@ export default function ProjectDetailPage() {
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Tanggal Update</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">1-Sep-2026</div>
+                        <div className="col-span-2 flex items-center gap-2">
+                          <Input
+                            type="date"
+                            value={selectedReportDate}
+                            onChange={(e) => setSelectedReportDate(e.target.value)}
+                            className="h-8 text-[10pt] w-auto min-w-[150px] bg-background font-semibold"
+                          />
+                          <span className="text-[9pt] text-muted-foreground hidden sm:inline">
+                            ({formatDisplayDate(selectedReportDate).fullDate})
+                          </span>
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Minggu Ke</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">1</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{weekNumber}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Mulai Kerja</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">22-Okt-2025</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{startDateFormatted}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">TOC Akhir</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">-</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{targetDateFormatted}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Sisa Hari Kalender</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">-46266</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{remainingCalendarDays}</div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Table Rekapitulasi */}
-                  <div className="mt-6 overflow-x-auto w-full">
+                  {/* Table Rekapitulasi dengan Outline yang tegas dan rapi */}
+                  <div className="mt-6 w-full rounded-lg border border-border bg-card overflow-hidden shadow-xs">
                     <Table className="text-[10pt] whitespace-nowrap">
                       <TableHeader className="bg-muted/30">
-                        <TableRow>
-                          <TableHead rowSpan={2} className="text-left border-r align-middle font-semibold text-foreground px-4">
+                        <TableRow className="border-b border-border">
+                          <TableHead rowSpan={2} className="text-left border-r border-border align-middle font-semibold text-foreground px-4">
                             Lokasi<br />Pekerjaan/Posisi
                           </TableHead>
-                          <TableHead colSpan={7} className="text-center border-r border-b font-semibold text-foreground px-4">SAT012</TableHead>
+                          <TableHead colSpan={7} className="text-center border-r border-b border-border font-semibold text-foreground px-4">SAT012</TableHead>
                           <TableHead rowSpan={2} className="align-middle text-center font-semibold text-foreground bg-muted/40 px-4">
                             Volume<br />Sisa Pekerjaan
                           </TableHead>
                         </TableRow>
-                        <TableRow>
-                          <TableHead className="text-center text-[10pt] border-r px-4">Volume Kemarin</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r px-4">Satuan</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Rencana Hari Ini</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Volume Hari Ini</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Satuan</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r px-4">Volume Sekarang</TableHead>
-                          <TableHead className="text-center text-[10pt] border-r px-4">Volume BOQ</TableHead>
+                        <TableRow className="border-b border-border">
+                          <TableHead className="text-center text-[10pt] border-r border-border px-4">Volume Kemarin</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Rencana Hari Ini</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Volume Hari Ini</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-4">Satuan</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border px-4">Volume Sekarang</TableHead>
+                          <TableHead className="text-center text-[10pt] border-r border-border px-4">Volume BOQ</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {['Pekerjaan Galian', 'Pekerjaan Jembatan', 'Pekerjaan Handhole (HH)', 'Progres Penarikan Kabel', 'Penyambungan/Jointing'].map((job, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="text-left font-medium border-r px-4 py-3">{job}</TableCell>
-                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
-                            <TableCell className="border-r text-center text-muted-foreground px-4 py-3">{idx === 2 || idx === 4 ? (idx===4?'Titik':'Unit') : 'Meter'}</TableCell>
-                            <TableCell className="border-r px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">0</TableCell>
-                            <TableCell className="border-r px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">0</TableCell>
-                            <TableCell className="border-r text-center text-muted-foreground bg-red-50/50 dark:bg-red-950/10 px-4 py-3">{idx === 2 || idx === 4 ? (idx===4?'Titik':'Unit') : 'Meter'}</TableCell>
-                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
-                            <TableCell className="border-r px-4 py-3 text-center">0</TableCell>
-                            <TableCell className="px-4 py-3 bg-muted/20 text-center font-medium">0</TableCell>
+                        {dailySummaryRows.map((row, idx) => (
+                          <TableRow key={idx} className={idx < dailySummaryRows.length - 1 ? "border-b border-border" : ""}>
+                            <TableCell className="text-left font-medium border-r border-border px-4 py-3">{row.job}</TableCell>
+                            <TableCell className="border-r border-border px-4 py-3 text-center">{row.volumeKemarin}</TableCell>
+                            <TableCell className="border-r border-border text-center text-muted-foreground px-4 py-3">{row.unit}</TableCell>
+                            <TableCell className="border-r border-border px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">{row.rencanaHariIni}</TableCell>
+                            <TableCell className="border-r border-border px-4 py-3 bg-red-50/50 dark:bg-red-950/10 text-center font-medium">{row.volumeHariIni}</TableCell>
+                            <TableCell className="border-r border-border text-center text-muted-foreground bg-red-50/50 dark:bg-red-950/10 px-4 py-3">{row.unit}</TableCell>
+                            <TableCell className="border-r border-border px-4 py-3 text-center font-medium">{row.volumeSekarang}</TableCell>
+                            <TableCell className="border-r border-border px-4 py-3 text-center">{row.volumeBOQ}</TableCell>
+                            <TableCell className="px-4 py-3 bg-muted/20 text-center font-semibold">{row.volumeSisa}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1210,11 +1225,11 @@ export default function ProjectDetailPage() {
                   <div className="space-y-3 pt-2">
                     <div className="grid grid-cols-[100px_1fr] items-start gap-2 border-t pt-4">
                       <Label className="text-[10pt] font-semibold text-muted-foreground mt-1">Kendala</Label>
-                      <div className="text-[10pt] leading-relaxed">-</div>
+                      <div className="text-[10pt] leading-relaxed text-foreground whitespace-pre-wrap">{currentDailyNotes.kendala}</div>
                     </div>
                     <div className="grid grid-cols-[100px_1fr] items-start gap-2">
                       <Label className="text-[10pt] font-semibold text-muted-foreground mt-1">Solusi</Label>
-                      <div className="text-[10pt] leading-relaxed">-</div>
+                      <div className="text-[10pt] leading-relaxed text-foreground whitespace-pre-wrap">{currentDailyNotes.solusi}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -1222,11 +1237,6 @@ export default function ProjectDetailPage() {
             </TabsContent>
             <TabsContent value="progress">
               <div className="space-y-6">
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold">Progress Pekerjaan (S-Curve & Actuals)</h2>
-                  <p className="text-[10pt] text-muted-foreground">Kurva-S dari Planned DRM vs Actual Progress.</p>
-                </div>
-
                 <SCurveChart 
                   data={sCurveData}
                   targetPercent={progressMetrics.targetPercent}
@@ -1243,6 +1253,7 @@ export default function ProjectDetailPage() {
                     onUpdateItems={handleUpdateDesignatorItems}
                     projectStartDate={project?.startDate}
                     projectEndDate={project?.targetDate}
+                    projectId={decodedId}
                   />
                 </div>
               </div>

@@ -55,7 +55,7 @@ export default function TopBar() {
   };
 
   return (
-    <header className="h-16 shrink-0 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="h-16 shrink-0 border-b bg-background flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 w-full">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="-ml-2" />
       </div>

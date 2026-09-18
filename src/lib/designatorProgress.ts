@@ -140,6 +140,8 @@ export interface DailyProgressRecord {
   mandor?: string;
   span?: string;
   evidence?: string;
+  kendala?: string;
+  solusi?: string;
 }
 
 

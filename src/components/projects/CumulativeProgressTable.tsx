@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -72,6 +73,7 @@ interface CumulativeProgressTableProps {
   projectStartDate?: string;
   projectEndDate?: string;
   requireReasonForAdd?: boolean;
+  projectId?: string;
 }
 
 const JENIS_OPTIONS: (JenisPekerjaan | "Semua Jenis")[] = [
@@ -111,6 +113,7 @@ export default function CumulativeProgressTable({
   projectStartDate,
   projectEndDate,
   requireReasonForAdd = true,
+  projectId,
 }: CumulativeProgressTableProps) {
   const [selectedJenis, setSelectedJenis] = useState<string>("Semua Jenis");
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,6 +198,40 @@ export default function CumulativeProgressTable({
   const [selectedMandor, setSelectedMandor] = useState<string>("");
   const [inputSpan, setInputSpan] = useState<string>("");
   const [inputEvidence, setInputEvidence] = useState<string>("");
+  const [inputKendala, setInputKendala] = useState<string>("");
+  const [inputSolusi, setInputSolusi] = useState<string>("");
+
+  // Muat kendala & solusi yang tersimpan ketika modal dibuka atau tanggal berubah
+  useEffect(() => {
+    if (!isAddDailyModalOpen) return;
+    const storageKey = projectId ? `project_daily_notes_${projectId}_${selectedDate}` : `daily_notes_${selectedDate}`;
+    try {
+      const savedNotes = localStorage.getItem(storageKey);
+      if (savedNotes) {
+        const parsed = JSON.parse(savedNotes);
+        setInputKendala(parsed.kendala || "");
+        setInputSolusi(parsed.solusi || "");
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback dari dailyRecords
+    let foundKendala = "";
+    let foundSolusi = "";
+    for (const it of items) {
+      const recs = it.dailyRecords?.[selectedDate];
+      if (recs && recs.length > 0) {
+        for (const r of recs) {
+          if (r.kendala && !foundKendala) foundKendala = r.kendala;
+          if (r.solusi && !foundSolusi) foundSolusi = r.solusi;
+        }
+      }
+    }
+    setInputKendala(foundKendala);
+    setInputSolusi(foundSolusi);
+  }, [selectedDate, isAddDailyModalOpen, projectId, items]);
 
   // Sinkronkan selectedIdVolume jika items berubah
   useEffect(() => {
@@ -386,6 +423,8 @@ export default function CumulativeProgressTable({
           mandor: selectedMandor,
           span: inputSpan,
           evidence: inputEvidence,
+          kendala: inputKendala,
+          solusi: inputSolusi,
         });
         currentRecords[selectedDate] = dayRecords;
 
@@ -398,6 +437,18 @@ export default function CumulativeProgressTable({
       return item;
     });
 
+    // Simpan juga ke localStorage catatan harian proyek
+    const storageKey = projectId ? `project_daily_notes_${projectId}_${selectedDate}` : `daily_notes_${selectedDate}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        kendala: inputKendala,
+        solusi: inputSolusi,
+        updatedAt: new Date().toISOString(),
+      }));
+    } catch (err) {
+      console.error("Failed to save daily notes", err);
+    }
+
     onUpdateItems(updated);
     toast.success(
       `Progress harian untuk ${selectedIdVolume} berhasil disimpan!`,
@@ -408,6 +459,8 @@ export default function CumulativeProgressTable({
     setSelectedMandor("");
     setInputSpan("");
     setInputEvidence("");
+    setInputKendala("");
+    setInputSolusi("");
   };
 
   // Badge warna untuk Jenis Pekerjaan
@@ -440,94 +493,41 @@ export default function CumulativeProgressTable({
     <Card className="border-0 shadow-none bg-transparent overflow-hidden">
       {/* Header Utama dengan Action Buttons */}
       <CardHeader className="p-0 pb-4 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold">
-                Tabel Aktual Kumulatif Progress Pekerjaan
-              </CardTitle>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-[10pt] text-muted-foreground flex items-center gap-1">
-                <User className="w-3.5 h-3.5" /> Simulasi Role:
-              </span>
-              <div className="flex bg-muted/50 rounded-md p-0.5 border">
-                <button
-                  onClick={() => setCurrentUserRole("PMO")}
-                  className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "PMO" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
-                >
-                  PMO
-                </button>
-                <button
-                  onClick={() => setCurrentUserRole("Site Manager")}
-                  className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "Site Manager" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
-                >
-                  Site Manager
-                </button>
-              </div>
-            </div>
-            <CardDescription className="text-[10pt] mt-0.5">
-              Rekapitulasi volume aktual harian per tanggal dan akumulasi
-              kumulatif terhadap target
-            </CardDescription>
+        <div>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base font-semibold">
+              Tabel Aktual Kumulatif Progress Pekerjaan
+            </CardTitle>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-            {/* Tombol Tambah Item Pekerjaan Baru */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setNewItemForm({
-                  idVolume: `VOL-00${items.length + 1}`,
-                  designator: "",
-                  namaDeskripsi: "",
-                  jenis: "Kabel",
-                  satuan: "Meter",
-                  bobotPersen: 15,
-                  volumeTarget: 1000,
-                });
-                setIsAddItemModalOpen(true);
-              }}
-              className="text-[10pt] font-medium flex items-center gap-1.5 h-10 px-3.5 rounded-lg border-primary/40 text-primary hover:bg-primary/5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Item Pekerjaan</span>
-            </Button>
-
-            {/* Tombol Update Progress Harian */}
-            <Button
-              className="text-[10pt] font-medium flex items-center gap-1.5 shadow-sm h-10 rounded-lg px-3.5"
-              disabled={items.length === 0}
-              onClick={() => setIsAddDailyModalOpen(true)}
-              title={
-                items.length === 0
-                  ? "Tambahkan item pekerjaan terlebih dahulu"
-                  : "Input progress harian"
-              }
-            >
-              <Calendar className="w-4 h-4" />
-              <span>Update Progress Harian</span>
-            </Button>
-
-            {items.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetAll}
-                className="text-[10pt] text-muted-foreground hover:text-destructive h-10 px-2.5"
-                title="Kosongkan seluruh data pekerjaan"
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[10pt] text-muted-foreground flex items-center gap-1">
+              <User className="w-3.5 h-3.5" /> Simulasi Role:
+            </span>
+            <div className="flex bg-muted/50 rounded-md p-0.5 border">
+              <button
+                onClick={() => setCurrentUserRole("PMO")}
+                className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "PMO" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+                PMO
+              </button>
+              <button
+                onClick={() => setCurrentUserRole("Site Manager")}
+                className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "Site Manager" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
+              >
+                Site Manager
+              </button>
+            </div>
           </div>
+          <CardDescription className="text-[10pt] mt-0.5">
+            Rekapitulasi volume aktual harian per tanggal dan akumulasi
+            kumulatif terhadap target
+          </CardDescription>
         </div>
 
         {/* Modal Tambah Item Pekerjaan Baru */}
         <Dialog open={isAddItemModalOpen} onOpenChange={setIsAddItemModalOpen}>
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[480px] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogHeader className="p-4 pb-3 border-b bg-muted/10 shrink-0">
               <DialogTitle className="flex items-center gap-2 text-base">
                 <Plus className="w-4 h-4 text-primary" />
                 Tambah Item Pekerjaan Fisik
@@ -538,7 +538,8 @@ export default function CumulativeProgressTable({
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleAddNewItem} className="space-y-3.5 py-2">
+            <form onSubmit={handleAddNewItem} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <div className="p-4 overflow-y-auto space-y-3.5 flex-1">
               {requireReasonForAdd && (
                 <div className="space-y-1.5 p-3 rounded-lg bg-muted/30 border border-border/50">
                   <Label className="text-[10pt] font-medium text-destructive">
@@ -682,7 +683,9 @@ export default function CumulativeProgressTable({
                 </div>
               </div>
 
-              <DialogFooter className="pt-3">
+              </div>
+
+              <DialogFooter className="m-0 border-t bg-muted/40 p-3 px-4 shrink-0 flex flex-row justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -703,19 +706,20 @@ export default function CumulativeProgressTable({
           open={isAddDailyModalOpen}
           onOpenChange={setIsAddDailyModalOpen}
         >
-          <DialogContent className="sm:max-w-[460px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+          <DialogContent className="sm:max-w-[480px] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogHeader className="p-4 pb-3 border-b bg-muted/10 shrink-0">
+              <DialogTitle className="flex items-center gap-2 text-base">
                 <Sparkles className="w-4 h-4 text-primary" />
                 Input Realisasi Volume Harian
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-xs text-muted-foreground">
                 Pilih pekerjaan dan tanggal untuk memasukkan angka realisasi
                 volume pekerjaan.
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSaveDailyProgress} className="space-y-4 py-2">
+            <form onSubmit={handleSaveDailyProgress} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <div className="p-4 overflow-y-auto space-y-4 flex-1">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-[10pt] font-medium">
@@ -876,7 +880,37 @@ export default function CumulativeProgressTable({
                 </div>
               </div>
 
-              <DialogFooter className="pt-2">
+              <div className="space-y-2 border-t pt-3">
+                <Label className="text-[10pt] font-medium flex items-center justify-between">
+                  <span>Kendala Lapangan</span>
+                  <span className="text-[9pt] font-normal text-muted-foreground">Opsional</span>
+                </Label>
+                <Textarea
+                  placeholder="Catat kendala di lapangan, misal: perizinan warga, kendala cuaca hujan deras, utilitas lain..."
+                  value={inputKendala}
+                  onChange={(e) => setInputKendala(e.target.value)}
+                  className="text-[10pt] min-h-[60px] resize-y"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10pt] font-medium flex items-center justify-between">
+                  <span>Solusi / Rencana Mitigasi</span>
+                  <span className="text-[9pt] font-normal text-muted-foreground">Opsional</span>
+                </Label>
+                <Textarea
+                  placeholder="Catat solusi atau tindakan mitigasi, misal: penambahan pompa air, koordinasi pihak berwenang..."
+                  value={inputSolusi}
+                  onChange={(e) => setInputSolusi(e.target.value)}
+                  className="text-[10pt] min-h-[60px] resize-y"
+                  rows={2}
+                />
+              </div>
+
+              </div>
+
+              <DialogFooter className="m-0 border-t bg-muted/40 p-3 px-4 shrink-0 flex flex-row justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -893,13 +927,9 @@ export default function CumulativeProgressTable({
           </DialogContent>
         </Dialog>
 
-        {/* Toolbar: Filter Dropdown & Search Box */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          {/* Dropdown Filter Jenis Pekerjaan (Sesuai request: buat filternya menggunakan drop-down aja) */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10pt] text-muted-foreground flex items-center gap-1.5 shrink-0">
-              <Filter className="w-3.5 h-3.5" /> Filter Jenis:
-            </span>
+        {/* Toolbar: Filter Dropdown, Action Buttons & Search Box */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               value={selectedJenis}
               onValueChange={(val) => setSelectedJenis(val || "Semua Jenis")}
@@ -916,13 +946,58 @@ export default function CumulativeProgressTable({
               </SelectContent>
             </Select>
 
-            <span className="text-[10pt] text-muted-foreground ml-2">
-              Menampilkan <b>{filteredItems.length}</b> dari {items.length} item
-            </span>
+            {/* Tombol Tambah Item Pekerjaan Baru */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setNewItemForm({
+                  idVolume: `VOL-00${items.length + 1}`,
+                  designator: "",
+                  namaDeskripsi: "",
+                  jenis: "Kabel",
+                  satuan: "Meter",
+                  bobotPersen: 15,
+                  volumeTarget: 1000,
+                });
+                setIsAddItemModalOpen(true);
+              }}
+              className="text-[10pt] font-medium flex items-center gap-1.5 h-10 px-3.5 rounded-lg border-primary/40 text-primary hover:bg-primary/5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Item Pekerjaan</span>
+            </Button>
+
+            {/* Tombol Update Progress Harian */}
+            <Button
+              className="text-[10pt] font-medium flex items-center gap-1.5 shadow-sm h-10 rounded-lg px-3.5"
+              disabled={items.length === 0}
+              onClick={() => setIsAddDailyModalOpen(true)}
+              title={
+                items.length === 0
+                  ? "Tambahkan item pekerjaan terlebih dahulu"
+                  : "Input progress harian"
+              }
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Update Progress Harian</span>
+            </Button>
+
+            {items.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetAll}
+                className="text-[10pt] text-muted-foreground hover:text-destructive h-10 px-2.5"
+                title="Kosongkan seluruh data pekerjaan"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-64 shrink-0">
+          <div className="relative w-full lg:w-64 shrink-0">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Cari ID, Designator..."
@@ -944,40 +1019,6 @@ export default function CumulativeProgressTable({
             <h3 className="text-base font-semibold text-foreground mb-1.5">
               Belum Ada Item Pekerjaan (Designator)
             </h3>
-            <p className="text-[10pt] text-muted-foreground max-w-md mb-6 leading-relaxed">
-              Proyek ini baru dibuat dan belum memiliki daftar pekerjaan fisik.
-              Tambahkan item pekerjaan (seperti penarikan kabel, jointing,
-              galian, terminasi) untuk menetapkan target BOQ dan mulai memantau
-              progres harian.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <Button
-                onClick={() => {
-                  setNewItemForm({
-                    idVolume: "VOL-001",
-                    designator: "",
-                    namaDeskripsi: "",
-                    jenis: "Kabel",
-                    satuan: "Meter",
-                    bobotPersen: 20,
-                    volumeTarget: 1000,
-                  });
-                  setIsAddItemModalOpen(true);
-                }}
-                className="gap-2 text-[10pt] h-9 px-4 shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Item Pekerjaan</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleLoadSampleTemplate}
-                className="gap-2 text-[10pt] h-9 px-4 border-dashed"
-              >
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Gunakan Template Contoh FO (6 Item)</span>
-              </Button>
-            </div>
           </div>
         ) : (
           <>

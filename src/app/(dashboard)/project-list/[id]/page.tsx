@@ -391,12 +391,9 @@ export default function ProjectDetailPreviewPage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-foreground">
+              <h2 className="text-[18px] font-bold tracking-tight text-foreground">
                 Daftar Designator {project.name}
               </h2>
-              <p className="text-[13px] text-muted-foreground mt-0.5">
-                Pilih salah satu group pekerjaan (misal: <strong>Galian</strong>, <strong>Handhole</strong>, <strong>Kabel</strong>, dsb) untuk melihat kurva pengerjaan grup secara keseluruhan dan detail per-designator.
-              </p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -454,7 +451,7 @@ export default function ProjectDetailPreviewPage() {
                     {/* Sisi Kiri: Info Group (Lebar Tetap 350px agar Target BOQ selalu sejajar) */}
                     <div className="w-full md:w-[350px] shrink-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-[14.5px] text-foreground group-hover:text-primary transition-colors truncate">
+                        <h3 className="font-semibold text-[16px] text-foreground group-hover:text-primary transition-colors truncate">
                           {group.name}
                         </h3>
                         <Badge variant="outline" className="text-[11px] py-[2px] px-[6px] my-[6px] font-medium bg-muted/30 shrink-0">
@@ -546,7 +543,7 @@ export default function ProjectDetailPreviewPage() {
                       {/* Header Group */}
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
-                          <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors">
+                          <h3 className="font-semibold text-[16px] text-foreground group-hover:text-primary transition-colors">
                             {group.name}
                           </h3>
                           <p className="text-[11px] text-muted-foreground">
@@ -623,43 +620,24 @@ export default function ProjectDetailPreviewPage() {
       ) : (
         /* LEVEL 3: DETAIL GROUP TERPILIH (Contoh: Kabel) */
         <div className="space-y-6">
-          {/* Header Kembali & Info Group */}
+          {/* Header Info Group */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleSelectGroup(null)}
-                className="py-[6px] px-[8px] text-[13px] cursor-pointer h-auto"
-              >
-                <span>Kembali ke Group List</span>
-              </Button>
-
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-bold tracking-tight text-foreground">
-                    Group Pekerjaan: {selectedGroup}
-                  </h2>
-                  <Badge variant="outline" className="text-[13px] py-[6px] px-[8px]">
-                    {activeGroupItems.length} Designator
-                  </Badge>
-                  <Badge variant="secondary" className="text-[13px] font-semibold py-[6px] px-[8px]">
-                    Bobot Grup: {activeGroupMetrics.totalBobot}%
-                  </Badge>
-                </div>
-                <p className="text-[13px] text-muted-foreground mt-0.5">
-                  Menampilkan kurva pengerjaan grup {selectedGroup} secara keseluruhan dan daftar pembaruan progres per-designator.
-                </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-bold tracking-tight text-foreground">
+                  {selectedGroup}
+                </h2>
+                <Badge variant="outline" className="text-[13px] py-[6px] px-[8px]">
+                  {activeGroupItems.length} Designator
+                </Badge>
+                <Badge variant="secondary" className="text-[13px] font-semibold py-[6px] px-[8px]">
+                  Bobot Grup: {activeGroupMetrics.totalBobot}%
+                </Badge>
               </div>
+              <p className="text-[13px] text-muted-foreground mt-0.5">
+                Menampilkan kurva pengerjaan grup {selectedGroup} secara keseluruhan dan daftar progres per-designator.
+              </p>
             </div>
-
-            <Button
-              size="sm"
-              onClick={() => setIsAddDesignatorOpen(true)}
-              className="py-[6px] px-[8px] text-[13px] shrink-0 h-auto cursor-pointer"
-            >
-              Tambah Designator ({selectedGroup})
-            </Button>
           </div>
 
           {/* 1. Detil Kurva Pengerjaan Designator Group Secara Keseluruhan */}
@@ -674,7 +652,7 @@ export default function ProjectDetailPreviewPage() {
           </div>
 
           {/* 2. List Semua Designator yang Masuk ke dalam Group Tersebut */}
-          <Card className="border-0 shadow-none ring-1 ring-border/50 bg-card overflow-hidden">
+          <Card className="py-0 gap-0 border-0 shadow-none ring-1 ring-border/50 bg-card overflow-hidden">
             <CardHeader className="bg-muted/10 p-4 border-b">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -682,7 +660,7 @@ export default function ProjectDetailPreviewPage() {
                     Daftar Designator dalam Group {selectedGroup}
                   </CardTitle>
                   <CardDescription className="text-[13px] mt-0.5">
-                    Klik tombol <strong>Update Progress</strong> di masing-masing baris untuk memperbarui volume pekerjaan fisik harian.
+                    Daftar volume pekerjaan dan capaian progres fisik per-designator.
                   </CardDescription>
                 </div>
 
@@ -698,7 +676,89 @@ export default function ProjectDetailPreviewPage() {
             </CardHeader>
 
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* MOBILE VIEW (Layar ~390px / < md): Tampilan List Card Responsif */}
+              <div className="md:hidden divide-y divide-border/60">
+                {displayedGroupItems.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground text-[13px] px-4">
+                    {itemSearch
+                      ? `Tidak ada designator yang cocok dengan "${itemSearch}".`
+                      : `Belum ada designator yang terdaftar dalam grup ${selectedGroup}.`}
+                  </div>
+                ) : (
+                  displayedGroupItems.map((item) => {
+                    const totalAct = getVolumeTotal(item);
+                    const targetVol = item.volumeTarget || item.boqVolume || 0;
+                    const pct = getProgressPercent(item);
+                    const isDone = pct >= 100;
+
+                    return (
+                      <div
+                        key={item.idVolume}
+                        className="p-4 space-y-2.5 bg-card hover:bg-muted/10 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                {item.idVolume}
+                              </span>
+                              <span className="font-semibold text-foreground text-[13.5px] truncate">
+                                {item.designator}
+                              </span>
+                            </div>
+                            <div className="text-[12px] text-muted-foreground mt-1 line-clamp-2">
+                              {item.namaDeskripsi}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0 font-medium px-1.5 py-0.5 bg-muted/30">
+                            Bobot {item.bobotPersen}%
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 py-2 px-3 bg-muted/20 rounded-lg text-[12px] border border-border/40">
+                          <div>
+                            <span className="text-[10.5px] text-muted-foreground block">Target BOQ</span>
+                            <span className="font-semibold text-foreground">
+                              {targetVol.toLocaleString('id-ID')} {item.satuan || item.unit || ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10.5px] text-muted-foreground block">Realisasi Fisik</span>
+                            <span className="font-semibold text-foreground">
+                              {totalAct.toLocaleString('id-ID')} {item.satuan || item.unit || ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="text-muted-foreground text-[11px]">Capaian:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-foreground">{pct}%</span>
+                              {isDone && (
+                                <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                  Done
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                isDone ? 'bg-emerald-500' : 'bg-primary'
+                              }`}
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* DESKTOP VIEW (Layar >= md): Tabel dengan Kolom Lengkap */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table className="text-[13px]">
                   <TableHeader className="bg-muted/30">
                     <TableRow>
@@ -721,16 +781,13 @@ export default function ProjectDetailPreviewPage() {
                       <TableHead className="font-semibold text-foreground px-4 py-3 text-center min-w-[140px] text-[13px]">
                         Capaian (%)
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground px-4 py-3 text-right pr-4 text-[13px]">
-                        Aksi
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
                     {displayedGroupItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-10 text-muted-foreground text-[13px]">
+                        <TableCell colSpan={7} className="text-center py-10 text-muted-foreground text-[13px]">
                           {itemSearch
                             ? `Tidak ada designator yang cocok dengan "${itemSearch}".`
                             : `Belum ada designator yang terdaftar dalam grup ${selectedGroup}.`}
@@ -790,15 +847,6 @@ export default function ProjectDetailPreviewPage() {
                                   />
                                 </div>
                               </div>
-                            </TableCell>
-                            <TableCell className="px-4 py-3 text-right pr-4">
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenUpdate(item)}
-                                className="py-[6px] px-[8px] text-[13px] h-auto rounded-md cursor-pointer"
-                              >
-                                Update Progress
-                              </Button>
                             </TableCell>
                           </TableRow>
                         );

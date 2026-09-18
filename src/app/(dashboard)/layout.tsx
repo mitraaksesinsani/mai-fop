@@ -60,7 +60,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <AppSidebar />
       <SidebarInset className="min-w-0 overflow-hidden flex flex-col">
         <TopBar />
-        <main className="p-6 max-w-full flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="p-4 sm:p-6 max-w-full flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </SidebarInset>

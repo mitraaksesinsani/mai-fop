@@ -25,6 +25,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { useProject, Project } from '@/context/ProjectContext';
 import { useBowheer, Bowheer } from '@/context/BowheerContext';
 import { toast } from 'sonner';
+import { getStatusLabel } from '@/lib/utils';
 
 const AVAILABLE_PROJECT_MANAGERS = [
   { name: 'Budi Santoso, S.T.', role: 'Site Manager' },
@@ -39,6 +40,7 @@ export default function ProjectsPage() {
   const { bowheers } = useBowheer();
   const activeBowheers = useMemo(() => bowheers.filter((b: Bowheer) => b.status === 'ACTIVE'), [bowheers]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -138,12 +140,19 @@ export default function ProjectsPage() {
     setIsEditModalOpen(true);
   };
 
-  const filteredProjects = projects.filter(
-    (p) =>
+  const filteredProjects = projects.filter((p) => {
+    const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.customer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.contractNo && p.contractNo.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (p.status && p.status.toLowerCase() === statusFilter.toLowerCase());
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -151,30 +160,47 @@ export default function ProjectsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Project Master Lists</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-[13px] mt-1">
             Buat, kelola, dan pantau proyek Fiber Optic Anda
           </p>
         </div>
       </div>
 
       {/* Projects Table & Filters */}
-      <Card className="border-0 shadow-none ring-0 bg-transparent">
+      <Card className="border-0 shadow-none ring-0 bg-transparent py-0 gap-0">
         <CardHeader className="px-0 pb-3 flex flex-row items-center justify-between">
           <div className="flex-1"></div>
-          <div className="flex items-center gap-2 w-full max-w-xl justify-end">
+          <div className="flex items-center gap-2 w-full max-w-xl justify-end flex-wrap sm:flex-nowrap">
             <div className="relative w-full max-w-sm">
               <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Cari Project ID atau Nama Proyek..." 
-                className="pl-8 text-xs"
+                placeholder="Cari disini" 
+                className="pl-8 pr-[8px] py-[6px] text-[13px] h-auto bg-card"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
+
+            {/* Filter Status */}
+            <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || 'ALL')}>
+              <SelectTrigger className="w-auto min-w-[110px] px-[8px] py-[6px] text-[13px] h-auto bg-card cursor-pointer shrink-0">
+                <SelectValue placeholder="Status">
+                  {statusFilter === 'ALL' ? 'Status' : getStatusLabel(statusFilter)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL" className="text-[13px]">Semua Status</SelectItem>
+                <SelectItem value="Planning" className="text-[13px]">Planning</SelectItem>
+                <SelectItem value="Survey" className="text-[13px]">Survey</SelectItem>
+                <SelectItem value="Implementation" className="text-[13px]">Implementation</SelectItem>
+                <SelectItem value="Active" className="text-[13px]">Active</SelectItem>
+                <SelectItem value="Completed" className="text-[13px]">Completed</SelectItem>
+              </SelectContent>
+            </Select>
             
             {/* Dialog Buat Proyek */}
             <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-              <DialogTrigger render={<Button className="gap-2 text-xs shadow-none cursor-pointer whitespace-nowrap" />}>
+              <DialogTrigger render={<Button className="gap-2 text-[13px] px-[8px] py-[6px] h-auto shadow-none cursor-pointer whitespace-nowrap shrink-0" />}>
                 <Plus className="w-4 h-4" />
                 Tambah Proyek
               </DialogTrigger>
@@ -185,126 +211,132 @@ export default function ProjectsPage() {
                 <form onSubmit={handleCreateProject} className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-4">
                     <div className="space-y-2 col-span-2 md:col-span-3">
-                      <Label htmlFor="projId">Project ID <span className="text-xs text-muted-foreground">(Opsional / Custom)</span></Label>
+                      <Label htmlFor="projId" className="text-[13px]">Project ID <span className="text-xs text-muted-foreground">(Opsional / Custom)</span></Label>
                       <Input
                         id="projId"
                         placeholder={`misal: PRJ-2026-00${projects.length + 1}`}
                         value={newProjectData.id}
                         onChange={(e) => setNewProjectData({ ...newProjectData, id: e.target.value })}
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     <div className="space-y-2 col-span-2 md:col-span-3">
-                      <Label htmlFor="projName">Nama Proyek <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="projName" className="text-[13px]">Nama Proyek <span className="text-destructive">*</span></Label>
                       <Input
                         id="projName"
                         placeholder="e.g. Backbone Fiber Semarang - Solo"
                         value={newProjectData.name}
                         onChange={(e) => setNewProjectData({ ...newProjectData, name: e.target.value })}
                         required
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="projCustomer">Customer / Client (Bowheer)</Label>
+                        <Label htmlFor="projCustomer" className="text-[13px]">Customer / Client (Bowheer)</Label>
                         <span className="text-[11px] text-muted-foreground">Master Bowheer</span>
                       </div>
                       <Select
                         value={newProjectData.customer}
                         onValueChange={(val) => setNewProjectData({ ...newProjectData, customer: val || undefined })}
                       >
-                        <SelectTrigger id="projCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
+                        <SelectTrigger id="projCustomer" className="px-[8px] py-[6px] text-[13px] h-auto"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                         <SelectContent>
                           {activeBowheers.map((b: Bowheer) => (
-                            <SelectItem key={b.id} value={b.name}>
+                            <SelectItem key={b.id} value={b.name} className="text-[13px]">
                               {b.name} {b.code ? `(${b.code})` : ''}
                             </SelectItem>
                           ))}
                           {newProjectData.customer && !activeBowheers.some((b: Bowheer) => b.name === newProjectData.customer) && (
-                            <SelectItem value={newProjectData.customer}>{newProjectData.customer}</SelectItem>
+                            <SelectItem value={newProjectData.customer} className="text-[13px]">{newProjectData.customer}</SelectItem>
                           )}
-                          <SelectItem value="Lainnya">Lainnya</SelectItem>
+                          <SelectItem value="Lainnya" className="text-[13px]">Lainnya</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="projType">Tipe Proyek</Label>
+                      <Label htmlFor="projType" className="text-[13px]">Tipe Proyek</Label>
                       <Select
                         value={newProjectData.type}
                         onValueChange={(val) => setNewProjectData({ ...newProjectData, type: val || undefined })}
                       >
-                        <SelectTrigger id="projType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
+                        <SelectTrigger id="projType" className="px-[8px] py-[6px] text-[13px] h-auto"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Backbone Fiber">Backbone Fiber</SelectItem>
-                          <SelectItem value="Metro Fiber">Metro Fiber</SelectItem>
-                          <SelectItem value="FTTx">FTTx Access</SelectItem>
-                          <SelectItem value="Enterprise Fiber">Enterprise Fiber</SelectItem>
+                          <SelectItem value="Backbone Fiber" className="text-[13px]">Backbone Fiber</SelectItem>
+                          <SelectItem value="Metro Fiber" className="text-[13px]">Metro Fiber</SelectItem>
+                          <SelectItem value="FTTx" className="text-[13px]">FTTx Access</SelectItem>
+                          <SelectItem value="Enterprise Fiber" className="text-[13px]">Enterprise Fiber</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="projLocation">Lokasi Pekerjaan</Label>
+                      <Label htmlFor="projLocation" className="text-[13px]">Lokasi Pekerjaan</Label>
                       <Input
                         id="projLocation"
                         placeholder="e.g. Jawa Tengah"
                         value={newProjectData.location}
                         onChange={(e) => setNewProjectData({ ...newProjectData, location: e.target.value })}
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="projContract">Nomor Kontrak</Label>
+                      <Label htmlFor="projContract" className="text-[13px]">Nomor Kontrak</Label>
                       <Input
                         id="projContract"
                         placeholder="e.g. CTR/2026/099"
                         value={newProjectData.contractNo}
                         onChange={(e) => setNewProjectData({ ...newProjectData, contractNo: e.target.value })}
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="projStartDate">Start Date</Label>
+                      <Label htmlFor="projStartDate" className="text-[13px]">Start Date</Label>
                       <Input
                         id="projStartDate"
                         type="date"
                         value={newProjectData.startDate}
                         onChange={(e) => setNewProjectData({ ...newProjectData, startDate: e.target.value })}
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="projTargetDate">Target Completion Date</Label>
+                      <Label htmlFor="projTargetDate" className="text-[13px]">Target Completion Date</Label>
                       <Input
                         id="projTargetDate"
                         type="date"
                         value={newProjectData.targetDate}
                         onChange={(e) => setNewProjectData({ ...newProjectData, targetDate: e.target.value })}
+                        className="px-[8px] py-[6px] text-[13px] h-auto"
                       />
                     </div>
                     
                     <div className="space-y-2 col-span-2 md:col-span-3">
-                      <Label htmlFor="projManager">Project Manager (PIC)</Label>
+                      <Label htmlFor="projManager" className="text-[13px]">Project Manager (PIC)</Label>
                       <Select
                         value={newProjectData.manager}
                         onValueChange={(val) => setNewProjectData({ ...newProjectData, manager: val || undefined })}
                       >
-                        <SelectTrigger id="projManager">
+                        <SelectTrigger id="projManager" className="px-[8px] py-[6px] text-[13px] h-auto">
                           <SelectValue placeholder="Pilih Project Manager / PIC" />
                         </SelectTrigger>
                         <SelectContent>
                           {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
-                            <SelectItem key={pm.name} value={pm.name}>
+                            <SelectItem key={pm.name} value={pm.name} className="text-[13px]">
                               {pm.name} ({pm.role})
                             </SelectItem>
                           ))}
                           {newProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === newProjectData.manager) && (
-                            <SelectItem value={newProjectData.manager}>{newProjectData.manager}</SelectItem>
+                            <SelectItem value={newProjectData.manager} className="text-[13px]">{newProjectData.manager}</SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <DialogFooter className="pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Batal</Button>
-                    <Button type="submit">Simpan Proyek</Button>
+                    <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)} className="px-[8px] py-[6px] text-[13px] h-auto cursor-pointer">Batal</Button>
+                    <Button type="submit" className="px-[8px] py-[6px] text-[13px] h-auto cursor-pointer">Simpan Proyek</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -312,99 +344,101 @@ export default function ProjectsPage() {
           </div>
         </CardHeader>
         <CardContent className="px-0">
-          <Table className="table-fixed w-full">
-            <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent border-b border-border/60">
-                <TableHead className="font-semibold text-foreground py-4 w-[35%]">Project Name</TableHead>
-                <TableHead className="font-semibold text-foreground w-[15%]">Manager</TableHead>
-                <TableHead className="font-semibold text-foreground w-[15%]">Schedule</TableHead>
-                <TableHead className="font-semibold text-foreground w-[15%]">Details</TableHead>
-                <TableHead className="font-semibold text-foreground w-[10%]">Status</TableHead>
-                <TableHead className="font-semibold text-foreground text-right pr-4 w-[10%]">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProjects.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="h-[400px] text-center">
-                    <div className="flex flex-col items-center justify-center h-full">
-                      <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                        <FolderX className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-medium text-foreground mb-2">Belum ada proyek</h3>
-                      <p className="text-muted-foreground text-sm max-w-sm mb-6">Silakan tambah proyek baru atau sesuaikan kata kunci pencarian Anda.</p>
-                      <Button onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Tambah Proyek Baru
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
+            <Table className="table-fixed w-full text-[13px]">
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent border-b border-border/60">
+                  <TableHead className="font-semibold text-foreground py-3 px-3 text-[13px] w-[35%]">Project Name</TableHead>
+                  <TableHead className="font-semibold text-foreground px-3 text-[13px] w-[15%]">Manager</TableHead>
+                  <TableHead className="font-semibold text-foreground px-3 text-[13px] w-[15%]">Schedule</TableHead>
+                  <TableHead className="font-semibold text-foreground px-3 text-[13px] w-[15%]">Details</TableHead>
+                  <TableHead className="font-semibold text-foreground px-3 text-[13px] w-[10%]">Status</TableHead>
+                  <TableHead className="font-semibold text-foreground text-right pr-4 px-3 text-[13px] w-[10%]">Action</TableHead>
                 </TableRow>
-              ) : (
-                filteredProjects.map((p) => {
-                  return (
-                  <TableRow 
-                    key={p.id} 
-                    className="hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/60"
-                    onClick={() => openDetail(p)}
-                  >
-                    <TableCell className="py-2.5">
-                      <div>
-                        <div className="font-medium text-foreground">{p.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{p.contractNo ? p.contractNo.split(' | ')[0] : p.id.substring(0, 8).toUpperCase()}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{p.manager || 'No Manager'}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{p.customer}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{p.startDate}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Target: {p.targetDate || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{p.type || 'Backbone'}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{p.location || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={p.status || 'Active'} />
-                    </TableCell>
-                    <TableCell className="text-right pr-4">
-                      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" />}>
-                            <MoreVertical className="h-4 w-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => openDetail(p)} className="cursor-pointer">
-                              <Eye className="w-4 h-4 mr-2" />
-                              Lihat Detil
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(p)} className="cursor-pointer">
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Detil
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              variant="destructive" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(p.id, p.name);
-                              }} 
-                              className="cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Hapus Proyek
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={6} className="h-[400px] text-center text-[13px]">
+                      <div className="flex flex-col items-center justify-center h-full">
+                        <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                          <FolderX className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-medium text-foreground mb-2">Belum ada proyek</h3>
+                        <p className="text-muted-foreground text-[13px] max-w-sm mb-6">Silakan tambah proyek baru atau sesuaikan kata kunci pencarian Anda.</p>
+                        <Button onClick={() => setIsCreateModalOpen(true)} className="text-[13px] px-[8px] py-[6px] h-auto cursor-pointer">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Tambah Proyek Baru
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                );
-              })
-            )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredProjects.map((p) => {
+                    return (
+                    <TableRow 
+                      key={p.id} 
+                      className="hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/60 text-[13px]"
+                      onClick={() => openDetail(p)}
+                    >
+                      <TableCell className="py-2.5 px-3">
+                        <div>
+                          <div className="font-medium text-foreground text-[13px]">{p.name}</div>
+                          <div className="text-[13px] text-muted-foreground mt-0.5">{p.contractNo ? p.contractNo.split(' | ')[0] : p.id.substring(0, 8).toUpperCase()}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-3">
+                        <div className="font-medium text-foreground text-[13px]">{p.manager || 'No Manager'}</div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5">{p.customer}</div>
+                      </TableCell>
+                      <TableCell className="px-3">
+                        <div className="font-medium text-foreground text-[13px]">{p.startDate}</div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5">Target: {p.targetDate || '-'}</div>
+                      </TableCell>
+                      <TableCell className="px-3">
+                        <div className="font-medium text-foreground text-[13px]">{p.type || 'Backbone'}</div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5">{p.location || '-'}</div>
+                      </TableCell>
+                      <TableCell className="px-3">
+                        <StatusBadge status={p.status || 'Active'} className="text-[13px]" />
+                      </TableCell>
+                      <TableCell className="text-right pr-4 px-3">
+                        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer" />}>
+                              <MoreVertical className="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40 text-[13px]">
+                              <DropdownMenuItem onClick={() => openDetail(p)} className="cursor-pointer text-[13px]">
+                                <Eye className="w-4 h-4 mr-2" />
+                                Lihat Detil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(p)} className="cursor-pointer text-[13px]">
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit Detil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                variant="destructive" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(p.id, p.name);
+                                }} 
+                                className="cursor-pointer text-[13px]"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Hapus Proyek
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -419,112 +453,115 @@ export default function ProjectsPage() {
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4 py-2">
               <div className="space-y-2 col-span-2">
-                <Label>Project ID</Label>
-                <Input disabled value={editProjectData.id || ''} className="bg-muted" />
+                <Label className="text-[13px]">Project ID</Label>
+                <Input disabled value={editProjectData.id || ''} className="px-[8px] py-[6px] text-[13px] h-auto bg-muted" />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="editProjName">Nama Proyek <span className="text-destructive">*</span></Label>
+                <Label htmlFor="editProjName" className="text-[13px]">Nama Proyek <span className="text-destructive">*</span></Label>
                 <Input
                   id="editProjName"
                   value={editProjectData.name || ''}
                   onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })}
                   required
+                  className="px-[8px] py-[6px] text-[13px] h-auto"
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="editCustomer">Customer / Client (Bowheer)</Label>
+                  <Label htmlFor="editCustomer" className="text-[13px]">Customer / Client (Bowheer)</Label>
                   <span className="text-[11px] text-muted-foreground">Master Bowheer</span>
                 </div>
                 <Select
                   value={editProjectData.customer || ''}
                   onValueChange={(val) => setEditProjectData({ ...editProjectData, customer: val || undefined })}
                 >
-                  <SelectTrigger id="editCustomer"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
+                  <SelectTrigger id="editCustomer" className="px-[8px] py-[6px] text-[13px] h-auto"><SelectValue placeholder="Pilih Client / Bowheer" /></SelectTrigger>
                   <SelectContent>
                     {activeBowheers.map((b: Bowheer) => (
-                      <SelectItem key={b.id} value={b.name}>
+                      <SelectItem key={b.id} value={b.name} className="text-[13px]">
                         {b.name} {b.code ? `(${b.code})` : ''}
                       </SelectItem>
                     ))}
                     {editProjectData.customer && !activeBowheers.some((b: Bowheer) => b.name === editProjectData.customer) && (
-                      <SelectItem value={editProjectData.customer}>{editProjectData.customer}</SelectItem>
+                      <SelectItem value={editProjectData.customer} className="text-[13px]">{editProjectData.customer}</SelectItem>
                     )}
-                    <SelectItem value="Lainnya">Lainnya</SelectItem>
+                    <SelectItem value="Lainnya" className="text-[13px]">Lainnya</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editType">Tipe Proyek</Label>
+                <Label htmlFor="editType" className="text-[13px]">Tipe Proyek</Label>
                 <Select
                   value={editProjectData.type || ''}
                   onValueChange={(val) => setEditProjectData({ ...editProjectData, type: val || undefined })}
                 >
-                  <SelectTrigger id="editType"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
+                  <SelectTrigger id="editType" className="px-[8px] py-[6px] text-[13px] h-auto"><SelectValue placeholder="Pilih Tipe" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Backbone Fiber">Backbone Fiber</SelectItem>
-                    <SelectItem value="Metro Fiber">Metro Fiber</SelectItem>
-                    <SelectItem value="FTTx">FTTx Access</SelectItem>
-                    <SelectItem value="Enterprise Fiber">Enterprise Fiber</SelectItem>
+                    <SelectItem value="Backbone Fiber" className="text-[13px]">Backbone Fiber</SelectItem>
+                    <SelectItem value="Metro Fiber" className="text-[13px]">Metro Fiber</SelectItem>
+                    <SelectItem value="FTTx" className="text-[13px]">FTTx Access</SelectItem>
+                    <SelectItem value="Enterprise Fiber" className="text-[13px]">Enterprise Fiber</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editLocation">Lokasi Pekerjaan</Label>
+                <Label htmlFor="editLocation" className="text-[13px]">Lokasi Pekerjaan</Label>
                 <Input
                   id="editLocation"
                   value={editProjectData.location || ''}
                   onChange={(e) => setEditProjectData({ ...editProjectData, location: e.target.value })}
+                  className="px-[8px] py-[6px] text-[13px] h-auto"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editContract">Nomor Kontrak</Label>
+                <Label htmlFor="editContract" className="text-[13px]">Nomor Kontrak</Label>
                 <Input
                   id="editContract"
                   value={editProjectData.contractNo || ''}
                   onChange={(e) => setEditProjectData({ ...editProjectData, contractNo: e.target.value })}
+                  className="px-[8px] py-[6px] text-[13px] h-auto"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editManager">Project Manager (PIC)</Label>
+                <Label htmlFor="editManager" className="text-[13px]">Project Manager (PIC)</Label>
                 <Select
                   value={editProjectData.manager || ''}
                   onValueChange={(val) => setEditProjectData({ ...editProjectData, manager: val || undefined })}
                 >
-                  <SelectTrigger id="editManager">
+                  <SelectTrigger id="editManager" className="px-[8px] py-[6px] text-[13px] h-auto">
                     <SelectValue placeholder="Pilih Project Manager / PIC" />
                   </SelectTrigger>
                   <SelectContent>
                     {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
-                      <SelectItem key={pm.name} value={pm.name}>
+                      <SelectItem key={pm.name} value={pm.name} className="text-[13px]">
                         {pm.name} ({pm.role})
                       </SelectItem>
                     ))}
                     {editProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === editProjectData.manager) && (
-                      <SelectItem value={editProjectData.manager}>{editProjectData.manager}</SelectItem>
+                      <SelectItem value={editProjectData.manager} className="text-[13px]">{editProjectData.manager}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editStatus">Status</Label>
+                <Label htmlFor="editStatus" className="text-[13px]">Status</Label>
                 <Select
                   value={editProjectData.status || ''}
                   onValueChange={(val) => setEditProjectData({ ...editProjectData, status: val || undefined })}
                 >
-                  <SelectTrigger id="editStatus"><SelectValue placeholder="Pilih Status" /></SelectTrigger>
+                  <SelectTrigger id="editStatus" className="px-[8px] py-[6px] text-[13px] h-auto"><SelectValue placeholder="Pilih Status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Planning">Planning</SelectItem>
-                    <SelectItem value="Survey">Survey</SelectItem>
-                    <SelectItem value="Implementation">Implementation</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Planning" className="text-[13px]">Planning</SelectItem>
+                    <SelectItem value="Survey" className="text-[13px]">Survey</SelectItem>
+                    <SelectItem value="Implementation" className="text-[13px]">Implementation</SelectItem>
+                    <SelectItem value="Completed" className="text-[13px]">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Batal</Button>
-              <Button type="submit">Simpan Perubahan</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} className="px-[8px] py-[6px] text-[13px] h-auto cursor-pointer">Batal</Button>
+              <Button type="submit" className="px-[8px] py-[6px] text-[13px] h-auto cursor-pointer">Simpan Perubahan</Button>
             </DialogFooter>
           </form>
         </DialogContent>
