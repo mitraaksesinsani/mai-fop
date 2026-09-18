@@ -305,8 +305,46 @@ export async function deleteAlatKerjaAction(id: string): Promise<{ success: bool
 
 export async function getMaterialsAction(): Promise<{ success: boolean; data: ServerMaterial[]; error?: string }> {
   try {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaData, error: supaError } = await supabase
+          .from('material_masters')
+          .select('*')
+          .order('material_name', { ascending: true });
+
+        if (!supaError && supaData && Array.isArray(supaData) && supaData.length > 0) {
+          const mapped: ServerMaterial[] = supaData.map((m: any) => ({
+            id: m.id,
+            materialCode: m.material_code || m.code || '',
+            materialName: m.material_name || m.name || '',
+            category: m.category || 'OSP',
+            specification: m.specification || '',
+            unit: m.unit || 'unit',
+            minimumStock: m.minimum_stock ?? 0,
+            unitPrice: Number(m.unit_price || m.price || 0),
+            price: Number(m.unit_price || m.price || 0),
+            isActive: m.is_active ?? true,
+            createdAt: m.created_at || new Date().toISOString(),
+          }));
+          return { success: true, data: mapped };
+        }
+      } catch {
+        // Fallback ke serverDb
+      }
+    }
+
     const db = await readServerDb();
-    return { success: true, data: db.materials || [] };
+    const sourceList = Array.isArray(db.materials) && db.materials.length > 0
+      ? db.materials
+      : (Array.isArray(db.materialMasters) && db.materialMasters.length > 0 ? db.materialMasters : []);
+
+    const mapped: ServerMaterial[] = sourceList.map((m: any) => ({
+      ...m,
+      unitPrice: Number(m.unitPrice ?? m.price ?? 0),
+      price: Number(m.price ?? m.unitPrice ?? 0),
+    }));
+
+    return { success: true, data: mapped };
   } catch (error: any) {
     return { success: false, data: [], error: error?.message || 'Failed to fetch materials' };
   }

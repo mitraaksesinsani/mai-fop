@@ -101,7 +101,7 @@ export default function ProjectPreviewProgressPage() {
 
           <div className="flex items-center gap-3 text-[10pt] text-muted-foreground mt-1 flex-wrap">
             <span>
-              Project ID: <span className="font-medium text-foreground">{project.contractNo ? project.contractNo.split(' | ')[0] : project.id}</span>
+              Project ID: <span className="font-medium text-foreground">{project.projectCode || (project.contractNo ? project.contractNo.split(' | ')[0] : project.id)}</span>
             </span>
             <span className="flex items-center gap-1">
               <Building2 className="w-3.5 h-3.5" />

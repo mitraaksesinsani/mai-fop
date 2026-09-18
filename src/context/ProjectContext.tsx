@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getProjects, deleteProjectRecord, addProjectRecord, updateProjectRecord } from '@/app/actions/projects';
+import { DesignatorItem } from '@/lib/designatorProgress';
 
 export interface BOQItem {
   id: string;
@@ -50,6 +51,189 @@ export interface DailyProgressLog {
   notes?: string;
 }
 
+export interface SurveyRouteData {
+  routeNotes?: string;
+  startPoint?: string;
+  endPoint?: string;
+  totalLengthMeters?: number;
+  cableType?: string;
+  deploymentType?: string;
+  feederCapacity?: string;
+  updatedAt?: string;
+}
+
+export interface SurveyValidationData {
+  surveyDate?: string;
+  surveyorName?: string;
+  feasibility?: 'Feasible' | 'Feasible with Notes' | 'Not Feasible' | string;
+  poleCondition?: string;
+  rowPermitRisk?: 'Rendah' | 'Sedang' | 'Tinggi' | string;
+  findings?: string;
+  recommendations?: string;
+  verifiedBy?: string;
+  updatedAt?: string;
+}
+
+export interface SurveyKmlData {
+  fileName?: string;
+  fileSize?: string;
+  uploadDate?: string;
+  verifiedBy?: string;
+  startCoord?: string;
+  endCoord?: string;
+  routeStatus?: 'Verified' | 'Need Revision' | 'Pending Verification' | string;
+  notes?: string;
+  updatedAt?: string;
+}
+
+export interface PermitItem {
+  id: string;
+  siteId: string;
+  category?: string;
+  status: string;
+  progressDetail: string;
+  targetDate?: string;
+  actualDate?: string;
+  picName?: string;
+  cost?: number;
+  notes?: string;
+  checklist?: Record<string, string>;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface DailyReportNote {
+  tenagaKerja?: string;
+  alatBerat?: string;
+  cuaca?: string;
+  kendala?: string;
+  solusi?: string;
+  updatedAt?: string;
+}
+
+export interface ProjectEvidence {
+  id: string;
+  title: string;
+  category: 'Galian' | 'Kabel FO' | 'Tiang OSP' | 'Handhole' | 'Jointing' | 'Lainnya';
+  date: string;
+  location?: string;
+  uploader: string;
+  imageUrl: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ProjectIssue {
+  id: string;
+  title: string;
+  severity: 'Low' | 'Medium' | 'High' | 'Critical';
+  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  category: 'Teknis' | 'Perizinan' | 'Sosial/Warga' | 'Cuaca' | 'Material' | 'Lainnya';
+  reportDate: string;
+  targetResolutionDate?: string;
+  reporter: string;
+  pic: string;
+  description: string;
+  mitigationPlan: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface OtdrTestResult {
+  id: string;
+  testId: string;
+  fiberCore: string;
+  direction: string;
+  distanceKm: number;
+  totalLossDb: number;
+  eventLossDb: number;
+  result: 'PASS' | 'FAIL';
+  wavelength?: string;
+  testedBy?: string;
+  testDate?: string;
+  notes?: string;
+  fileUrl?: string;
+  fileName?: string;
+  createdAt: string;
+}
+
+export interface CommissioningDefect {
+  id: string;
+  punchId: string;
+  description: string;
+  location: string;
+  severity: 'Minor' | 'Major' | 'Critical';
+  pic: string;
+  reportDate?: string;
+  dueDate?: string;
+  status: 'Open' | 'In Correction' | 'Closed';
+  resolutionNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BautAcceptance {
+  id: string;
+  bautNumber: string;
+  title: string;
+  clientName: string;
+  date: string;
+  status: 'Draft' | 'Under Review' | 'Ready for Sign-off' | 'Signed & Approved';
+  signatoryVendor?: string;
+  signatoryClient?: string;
+  scopeCovered?: string;
+  notes?: string;
+  documentUrl?: string;
+  documentName?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AsBuiltDocument {
+  id: string;
+  name: string;
+  category: 'Engineering' | 'GIS Spatial' | 'Testing' | 'Acceptance' | 'Lainnya';
+  size?: string;
+  date: string;
+  status: 'Final Verified' | 'Under Review' | 'Customer Signed';
+  notes?: string;
+  fileUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProjectAsset {
+  id: string;
+  assetId: string;
+  type: 'Cable Asset' | 'Closure Asset' | 'ODF Asset' | 'Pole Asset' | 'Handhole Asset' | 'Optical Splitter' | 'Lainnya';
+  specification: string;
+  location: string;
+  warranty: string;
+  vendor: string;
+  status: 'Active / Transferred' | 'In Testing' | 'Under Maintenance';
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProfitabilityRootCause {
+  id: string;
+  title: string;
+  description: string;
+  impactAmount: number;
+  impactLevel: 'Low' | 'Moderate' | 'High Cost Impact';
+}
+
+export interface ProjectProfitability {
+  contractValue: number;
+  actualCapex: number;
+  actualOpex: number;
+  rabBudget: number;
+  notes?: string;
+  rootCauses: ProfitabilityRootCause[];
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -61,15 +245,35 @@ export interface Project {
   targetDate?: string;
   manager?: string;
   status?: string;
+  projectCode?: string;
+  scope?: string;
   
   // Phase 1: Engineering Data
   boqItems?: BOQItem[];
   routeNotes?: string;
+  surveyRoute?: SurveyRouteData;
+  surveyValidation?: SurveyValidationData;
+  surveyKml?: SurveyKmlData;
+  permits?: PermitItem[];
   commercial?: CommercialData;
 
   // Implementation Baseline & Logs
   drmData?: DRMData;
   progressLogs?: DailyProgressLog[];
+  designatorItems?: DesignatorItem[];
+  dailyReports?: Record<string, DailyReportNote>;
+  evidences?: ProjectEvidence[];
+  issues?: ProjectIssue[];
+
+  // Commissioning Data
+  otdrTests?: OtdrTestResult[];
+  defects?: CommissioningDefect[];
+  bauts?: BautAcceptance[];
+
+  // Closing & Handover Data
+  asBuiltDocs?: AsBuiltDocument[];
+  assets?: ProjectAsset[];
+  profitability?: ProjectProfitability;
 }
 
 export const DEFAULT_PROJECTS: Project[] = [];

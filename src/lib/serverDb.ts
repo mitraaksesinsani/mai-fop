@@ -43,6 +43,8 @@ export interface ServerMaterial {
   specification?: string;
   unit: string;
   minimumStock?: number;
+  unitPrice?: number;
+  price?: number;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -241,6 +243,22 @@ const INITIAL_WAREHOUSES: ServerWarehouse[] = [
   { id: 'wh-2', code: 'WH-BDG', name: 'Gudang Transit Bandung', location: 'Bandung', address: 'Jl. Soekarno Hatta No. 450', pic: 'Dedi Mulyadi', contact: '08137776662', capacity: 5000, type: 'TRANSIT', status: 'ACTIVE' },
 ];
 
+export const INITIAL_MATERIALS: ServerMaterial[] = [
+  { id: 'mat-1', materialCode: 'CBL-FO-ADSS-24C', materialName: 'Kabel Fiber Optik ADSS 24 Core', category: 'CABLE', specification: 'Single Mode, G.652D, Span 100m', unit: 'Meter', minimumStock: 1000, unitPrice: 8500, price: 8500, isActive: true },
+  { id: 'mat-2', materialCode: 'CBL-FO-DUCT-48C', materialName: 'Kabel Fiber Optik Duct 48 Core', category: 'CABLE', specification: 'Single Mode, G.652D', unit: 'Meter', minimumStock: 500, unitPrice: 14000, price: 14000, isActive: true },
+  { id: 'mat-3', materialCode: 'TIANG-BESI-7M', materialName: 'Tiang Besi 7 Meter 140 daN', category: 'OSP', specification: 'Hot Dip Galvanized', unit: 'batang', minimumStock: 50, unitPrice: 850000, price: 850000, isActive: true },
+  { id: 'mat-4', materialCode: 'TIANG-BESI-9M', materialName: 'Tiang Besi 9 Meter 200 daN', category: 'OSP', specification: 'Hot Dip Galvanized', unit: 'batang', minimumStock: 30, unitPrice: 1100000, price: 1100000, isActive: true },
+  { id: 'mat-5', materialCode: 'FOSC-INLINE-48C', materialName: 'Closure Splice Inline FO 48 Core', category: 'ACCESSORIES', specification: 'Waterproof IP68, 4 Tray @12 Core', unit: 'pcs', minimumStock: 40, unitPrice: 275000, price: 275000, isActive: true },
+  { id: 'mat-6', materialCode: 'ODC-PRECON-144C', materialName: 'Optical Distribution Cabinet 144 Core', category: 'ODC', specification: 'Outdoor IP65 Powder Coated', unit: 'unit', minimumStock: 10, unitPrice: 4500000, price: 4500000, isActive: true },
+  { id: 'mat-7', materialCode: 'ODP-SOLID-16C', materialName: 'Optical Distribution Point 16 Core', category: 'ODP', specification: 'Splitter 1:16 PLC Modular', unit: 'unit', minimumStock: 25, unitPrice: 550000, price: 550000, isActive: true },
+  { id: 'mat-8', materialCode: 'ODP-SOLID-8C', materialName: 'Optical Distribution Point 8 Core', category: 'ODP', specification: 'Splitter 1:8 PLC Modular', unit: 'unit', minimumStock: 25, unitPrice: 350000, price: 350000, isActive: true },
+  { id: 'mat-9', materialCode: 'PRECAST-MH-TYP-B', materialName: 'Precast Manhole Beton Type B', category: 'CIVIL', specification: 'Ukuran 200x120x150cm K-350', unit: 'unit', minimumStock: 15, unitPrice: 3200000, price: 3200000, isActive: true },
+  { id: 'mat-10', materialCode: 'HDPE-SUBDUCT-32', materialName: 'Subduct Pipa HDPE 32/28 mm', category: 'OSP', specification: 'Roll @500 Meter Warna Orange', unit: 'Meter', minimumStock: 2000, unitPrice: 6500, price: 6500, isActive: true },
+  { id: 'mat-11', materialCode: 'ACC-POLE-SET', materialName: 'Aksesoris Tiang & Bracket Suspension', category: 'ACCESSORIES', specification: 'Bracket, Suspension Clamp, Banding 20mm', unit: 'set', minimumStock: 100, unitPrice: 75000, price: 75000, isActive: true },
+  { id: 'mat-12', materialCode: 'SRV-PULL-FO', materialName: 'Jasa Penarikan Kabel FO Udara/Duct', category: 'SERVICE', specification: 'Penarikan kabel fiber optik, tagging, sagging', unit: 'm', minimumStock: 0, unitPrice: 3500, price: 3500, isActive: true },
+  { id: 'mat-13', materialCode: 'SRV-PLANT-POLE', materialName: 'Jasa Pendirian & Penanaman Tiang', category: 'SERVICE', specification: 'Gali lubang, tanam tiang 7/9m, cor pondasi', unit: 'titik', minimumStock: 0, unitPrice: 150000, price: 150000, isActive: true },
+];
+
 export const INITIAL_SYSTEM_USERS: ServerSystemUser[] = [
   {
     id: 'ec0a5b9c-1e1c-4c32-854d-6884336e58a7',
@@ -372,38 +390,7 @@ export async function readServerDb(): Promise<DatabaseSchema> {
         if (Array.isArray(parsed.materialMasters) && parsed.materialMasters.length > 0) {
           parsed.materials = parsed.materialMasters;
         } else {
-          parsed.materials = [
-            {
-              id: 'mat-1',
-              materialCode: 'CBL-FO-ADSS-24C',
-              materialName: 'Kabel Fiber Optik ADSS 24 Core',
-              category: 'CABLE',
-              specification: 'Single Mode, G.652D, Span 100m',
-              unit: 'Meter',
-              minimumStock: 1000,
-              isActive: true,
-            },
-            {
-              id: 'mat-2',
-              materialCode: 'CBL-FO-DUCT-48C',
-              materialName: 'Kabel Fiber Optik Duct 48 Core',
-              category: 'CABLE',
-              specification: 'Single Mode, G.652D',
-              unit: 'Meter',
-              minimumStock: 500,
-              isActive: true,
-            },
-            {
-              id: 'mat-3',
-              materialCode: 'TIANG-BESI-7M',
-              materialName: 'Tiang Besi 7 Meter 140 daN',
-              category: 'OSP',
-              specification: 'Hot Dip Galvanized',
-              unit: 'batang',
-              minimumStock: 50,
-              isActive: true,
-            },
-          ];
+          parsed.materials = INITIAL_MATERIALS;
         }
       }
       parsed._initialized.materials = true;

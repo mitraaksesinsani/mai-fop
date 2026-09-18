@@ -11,8 +11,557 @@
       "status": "PLANNING",
       "projectType": "Backbone Fiber",
       "projectCode": "0001",
+      "scope": "",
+      "routeNotes": "Tarikan kabel FO sepanjang Jl. Sudirman menuju Site Sentul, melewati 4 titik Handhole dan 22 titik Tiang OSP eksisting.",
+      "surveyRoute": {
+        "routeNotes": "Tarikan kabel FO sepanjang Jl. Sudirman menuju Site Sentul, melewati 4 titik Handhole dan 22 titik Tiang OSP eksisting.",
+        "startPoint": "ODC-01 Sentul City",
+        "endPoint": "Site BTS Tower Sukaresmi",
+        "totalLengthMeters": 4850,
+        "cableType": "Kabel Fiber Optik ADSS 24 Core",
+        "deploymentType": "Aerial (Tiang)",
+        "feederCapacity": "24 Core",
+        "updatedAt": "2026-09-18T10:00:00.000Z"
+      },
+      "surveyValidation": {
+        "surveyDate": "2026-09-17",
+        "surveyorName": "Budi Santoso, S.T.",
+        "feasibility": "Layak dengan Catatan",
+        "poleCondition": "Mayoritas tiang Telkom dalam kondisi baik, dibutuhkan 6 tiang baru 7 meter di pertigaan jalan utama.",
+        "rowPermitRisk": "Sedang",
+        "findings": "Perlu koordinasi dengan dinas PU setempat untuk izin penyeberangan jalan (crossing).",
+        "recommendations": "Gunakan tiang 9 meter saat crossing jalan raya utama untuk keamanan lintasan armada logistik.",
+        "verifiedBy": "Ahmad Hidayat",
+        "updatedAt": "2026-09-18T10:00:00.000Z"
+      },
+      "surveyKml": {
+        "fileName": "Route_FO_0001_YOI_Sentul.kml",
+        "fileSize": "1.2 MB",
+        "uploadDate": "2026-09-17",
+        "verifiedBy": "Dedi Mulyadi",
+        "startCoord": "-6.553210, 106.854120",
+        "endCoord": "-6.578910, 106.883450",
+        "routeStatus": "Verified",
+        "notes": "Rute KML telah diverifikasi sesuai as-surveyed track GPS Garmin.",
+        "updatedAt": "2026-09-18T10:00:00.000Z"
+      },
+      "permits": [
+        {
+          "id": "pmt-001",
+          "siteId": "SITE-SENTUL-01",
+          "category": "PU Kota / Kab",
+          "status": "Perizinan",
+          "progressDetail": "2.4 Survey lokasi bersama PU",
+          "targetDate": "2026-09-30",
+          "picName": "Budi Santoso, S.T.",
+          "cost": 2500000,
+          "notes": "Menunggu jadwal survey lapangan bersama staf Dinas Bina Marga.",
+          "checklist": {
+            "PU Kota / Kab": "4"
+          },
+          "createdAt": "2026-09-17T08:00:00.000Z",
+          "updatedAt": "2026-09-18T10:00:00.000Z"
+        },
+        {
+          "id": "pmt-002",
+          "siteId": "SITE-SENTUL-02",
+          "category": "PU Nas",
+          "status": "Aanwijzing",
+          "progressDetail": "1.2 Penjadwalan aanwijzing",
+          "targetDate": "2026-10-10",
+          "picName": "Budi Santoso, S.T.",
+          "cost": 5000000,
+          "notes": "Pengajuan rekomendasi teknis crossing jalan nasional KM 37.",
+          "checklist": {
+            "PU Nas": "3"
+          },
+          "createdAt": "2026-09-17T09:30:00.000Z",
+          "updatedAt": "2026-09-18T10:00:00.000Z"
+        },
+        {
+          "id": "pmt-003",
+          "siteId": "SITE-SENTUL-03",
+          "category": "Izin Warga / Lingkungan",
+          "status": "Instalasi",
+          "progressDetail": "4.4 Proses Penanaman Tiang",
+          "targetDate": "2026-09-25",
+          "picName": "Ahmad Hidayat",
+          "cost": 1500000,
+          "notes": "Sosialisasi dan koordinasi bersama RW 05 dan tokoh masyarakat selesai.",
+          "checklist": {
+            "Izin Warga / Lingkungan": "7"
+          },
+          "createdAt": "2026-09-18T07:15:00.000Z",
+          "updatedAt": "2026-09-18T10:00:00.000Z"
+        }
+      ],
       "createdAt": "2026-09-16T06:45:05.662Z",
-      "updatedAt": "2026-09-18T07:46:11.031Z"
+      "updatedAt": "2026-09-18T14:58:14.213Z",
+      "boqItems": [
+        {
+          "id": "boq-1",
+          "name": "Kabel Fiber Optik ADSS 24 Core",
+          "quantity": 4850,
+          "unit": "Meter",
+          "price": 8500
+        },
+        {
+          "id": "boq-2",
+          "name": "Tiang Besi 7 Meter 140 daN",
+          "quantity": 22,
+          "unit": "batang",
+          "price": 850000
+        },
+        {
+          "id": "boq-3",
+          "name": "ODC 144 Core",
+          "quantity": 1,
+          "unit": "unit",
+          "price": 4500000
+        },
+        {
+          "id": "boq-4",
+          "name": "ODP 16 Core",
+          "quantity": 8,
+          "unit": "unit",
+          "price": 550000
+        },
+        {
+          "id": "boq-5",
+          "name": "Jasa Penarikan Kabel FO",
+          "quantity": 4850,
+          "unit": "m",
+          "price": 3500
+        },
+        {
+          "id": "boq-6",
+          "name": "Jasa Pendirian Tiang",
+          "quantity": 22,
+          "unit": "titik",
+          "price": 150000
+        }
+      ],
+      "designatorItems": [
+        {
+          "idVolume": "VOL-001",
+          "designator": "GL-OPEN-TRENCH-1M",
+          "namaDeskripsi": "Galian Tanah Manual Kedalaman 1 Meter",
+          "jenis": "Galian",
+          "satuan": "Meter",
+          "bobotPersen": 15,
+          "volumeTarget": 4500,
+          "dailyVolumes": {
+            "2026-09-17": 250,
+            "2026-09-18": 320
+          },
+          "dailyRecords": {
+            "2026-09-17": [
+              {
+                "volume": 250,
+                "alatKerja": "Excavator Mini",
+                "mandor": "Mandor Ujang",
+                "span": "MH-01 s/d MH-03",
+                "kendala": "Crossing jalan raya padat pada jam sibuk siang",
+                "solusi": "Pekerjaan penyeberangan kabel dialihkan ke malam hari pukul 22.00 WIB"
+              }
+            ],
+            "2026-09-18": [
+              {
+                "volume": 320,
+                "alatKerja": "Jackhammer Pneumatik",
+                "mandor": "Mandor Ujang",
+                "span": "MH-03 s/d MH-05",
+                "kendala": "Kondisi tanah berbatu di titik Handhole 03 sedikit memperlambat galian",
+                "solusi": "Penambahan alat jackhammer pneumatik untuk mempercepat penembusan batu"
+              }
+            ]
+          }
+        },
+        {
+          "idVolume": "VOL-002",
+          "designator": "AC-OF-SM-ADSS-24D",
+          "namaDeskripsi": "Penarikan Kabel Fiber Optik ADSS 24 Core",
+          "jenis": "Kabel",
+          "satuan": "Meter",
+          "bobotPersen": 25,
+          "volumeTarget": 15000,
+          "dailyVolumes": {
+            "2026-09-18": 500
+          },
+          "dailyRecords": {
+            "2026-09-18": [
+              {
+                "volume": 500,
+                "alatKerja": "Roll Kabel & Mobil Tangga",
+                "mandor": "Mandor Asep",
+                "span": "Span ODC-01 s/d Tiang 08",
+                "kendala": "-",
+                "solusi": "-"
+              }
+            ]
+          }
+        },
+        {
+          "idVolume": "VOL-003",
+          "designator": "PU-S7.0-140",
+          "namaDeskripsi": "Pendirian Tiang Besi 7 Meter 140 daN",
+          "jenis": "Tiang",
+          "satuan": "batang",
+          "bobotPersen": 15,
+          "volumeTarget": 180,
+          "dailyVolumes": {
+            "2026-09-17": 6,
+            "2026-09-18": 8
+          },
+          "dailyRecords": {
+            "2026-09-17": [
+              {
+                "volume": 6,
+                "alatKerja": "Mobil Crane 3T",
+                "mandor": "Mandor Joko",
+                "span": "Jl. Sentul Raya KM 1-2",
+                "kendala": "-",
+                "solusi": "-"
+              }
+            ],
+            "2026-09-18": [
+              {
+                "volume": 8,
+                "alatKerja": "Mobil Crane 3T",
+                "mandor": "Mandor Joko",
+                "span": "Jl. Sentul Raya KM 2-4",
+                "kendala": "-",
+                "solusi": "-"
+              }
+            ]
+          }
+        },
+        {
+          "idVolume": "VOL-004",
+          "designator": "JB-SPAN-TRAYS-FO",
+          "namaDeskripsi": "Konstruksi Jembatan Kabel & Trays FO",
+          "jenis": "Jembatan",
+          "satuan": "Meter",
+          "bobotPersen": 8,
+          "volumeTarget": 250,
+          "dailyVolumes": {}
+        },
+        {
+          "idVolume": "VOL-005",
+          "designator": "HH-PRECAST-TYPE-B",
+          "namaDeskripsi": "Pemasangan Precast Handhole Type B",
+          "jenis": "Handhole",
+          "satuan": "unit",
+          "bobotPersen": 7,
+          "volumeTarget": 24,
+          "dailyVolumes": {}
+        },
+        {
+          "idVolume": "VOL-006",
+          "designator": "TM-ODC-144C",
+          "namaDeskripsi": "Terminasi ODC 144 Core",
+          "jenis": "Terminasi",
+          "satuan": "core",
+          "bobotPersen": 10,
+          "volumeTarget": 144,
+          "dailyVolumes": {}
+        },
+        {
+          "idVolume": "VOL-007",
+          "designator": "UT-OTDR-OPM-TEST",
+          "namaDeskripsi": "Uji Terima (UT) Pengukuran OTDR & OPM End-to-End",
+          "jenis": "Uji Terima (UT)",
+          "satuan": "link",
+          "bobotPersen": 8,
+          "volumeTarget": 12,
+          "dailyVolumes": {}
+        },
+        {
+          "idVolume": "VOL-008",
+          "designator": "CT-COMM-BER-TEST",
+          "namaDeskripsi": "Commisioning Test (CT) & Bit Error Rate Test",
+          "jenis": "Commisioning Test (CT)",
+          "satuan": "link",
+          "bobotPersen": 7,
+          "volumeTarget": 12,
+          "dailyVolumes": {}
+        },
+        {
+          "idVolume": "VOL-009",
+          "designator": "BA-REKON-ASBUILT",
+          "namaDeskripsi": "Penyusunan Dokumen BA Rekon & As-Built Drawing",
+          "jenis": "BA Rekon",
+          "satuan": "dokumen",
+          "bobotPersen": 5,
+          "volumeTarget": 1,
+          "dailyVolumes": {}
+        }
+      ],
+      "dailyReports": {
+        "2026-09-17": {
+          "tenagaKerja": "Tim OSP Telkom (16 Orang)",
+          "alatBerat": "Mobil Crane 3T, Excavator Mini",
+          "cuaca": "CERAH",
+          "kendala": "Crossing jalan raya padat pada jam sibuk siang",
+          "solusi": "Pekerjaan penyeberangan kabel dialihkan ke malam hari pukul 22.00 WIB",
+          "updatedAt": "2026-09-18T10:00:00.000Z"
+        },
+        "2026-09-18": {
+          "tenagaKerja": "Tim Gabungan Teknisi & Mandor (24 Orang)",
+          "alatBerat": "Mobil Tangga, Mini Excavator, Genset 5kVA",
+          "cuaca": "BERAWAN",
+          "kendala": "Kondisi tanah berbatu di titik Handhole 03 sedikit memperlambat galian",
+          "solusi": "Penambahan alat jackhammer pneumatik untuk mempercepat penembusan batu",
+          "updatedAt": "2026-09-18T14:30:00.000Z"
+        }
+      },
+      "evidences": [
+        {
+          "id": "evd-001",
+          "title": "Galian Jalur Utama Handhole 01 - 03",
+          "category": "Galian",
+          "date": "2026-09-17",
+          "location": "Jl. Sentul KM 1.2, Depan Ruko Perumahan",
+          "uploader": "Budi Santoso, S.T.",
+          "imageUrl": "https://images.unsplash.com/photo-1541888946425-d0fbb186156f?w=800&auto=format&fit=crop&q=60",
+          "notes": "Kedalaman galian 1.1 meter telah sesuai spesifikasi standar Telkom.",
+          "createdAt": "2026-09-17T11:30:00.000Z"
+        },
+        {
+          "id": "evd-002",
+          "title": "Penarikan Kabel ADSS 24 Core Span 01",
+          "category": "Kabel FO",
+          "date": "2026-09-18",
+          "location": "ODC-01 Sentul City menuju Tiang OSP 05",
+          "uploader": "Budi Santoso, S.T.",
+          "imageUrl": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=60",
+          "notes": "Pemasangan suspension clamp dan tension clamp terpasang kuat.",
+          "createdAt": "2026-09-18T15:00:00.000Z"
+        }
+      ],
+      "issues": [
+        {
+          "id": "iss-001",
+          "title": "Izin crossing jalan raya nasional KM 37 belum terbit",
+          "severity": "High",
+          "status": "In Progress",
+          "category": "Perizinan",
+          "reportDate": "2026-09-16",
+          "targetResolutionDate": "2026-09-25",
+          "reporter": "Budi Santoso, S.T.",
+          "pic": "Ahmad Hidayat",
+          "description": "Dibutuhkan rekomendasi teknis tambahan dari Balai PU Nasional sebelum crossing dapat dieksekusi.",
+          "mitigationPlan": "Menghadiri aanwijzing lapangan bersama tim Balai Pelaksanaan Jalan Nasional (BPJN).",
+          "createdAt": "2026-09-16T09:00:00.000Z",
+          "updatedAt": "2026-09-18T10:00:00.000Z"
+        },
+        {
+          "id": "iss-002",
+          "title": "Lapisan tanah berbatu keras di Handhole 03",
+          "severity": "Medium",
+          "status": "Resolved",
+          "category": "Teknis",
+          "reportDate": "2026-09-17",
+          "targetResolutionDate": "2026-09-18",
+          "reporter": "Mandor Ujang",
+          "pic": "Budi Santoso, S.T.",
+          "description": "Penggalian manual terhambat batuan kali yang keras.",
+          "mitigationPlan": "Mobilisasi jackhammer pneumatik tambahan untuk mempercepat pemecahan batu.",
+          "createdAt": "2026-09-17T13:00:00.000Z",
+          "updatedAt": "2026-09-18T14:00:00.000Z"
+        }
+      ],
+      "otdrTests": [
+        {
+          "id": "otdr-001",
+          "testId": "OTDR-001",
+          "fiberCore": "Core 01 (SM)",
+          "direction": "A -> B",
+          "distanceKm": 45.12,
+          "totalLossDb": 12.4,
+          "eventLossDb": 0.05,
+          "result": "PASS",
+          "wavelength": "1310 nm",
+          "testedBy": "Budi Santoso, S.T.",
+          "testDate": "2026-09-17",
+          "notes": "Redaman normal sesuai standar link budget Telkom.",
+          "fileName": "OTDR_TRACE_CORE_01_SENTUL.sor",
+          "createdAt": "2026-09-17T14:00:00.000Z"
+        },
+        {
+          "id": "otdr-002",
+          "testId": "OTDR-002",
+          "fiberCore": "Core 02 (SM)",
+          "direction": "A -> B",
+          "distanceKm": 45.1,
+          "totalLossDb": 12.6,
+          "eventLossDb": 0.04,
+          "result": "PASS",
+          "wavelength": "1310 nm",
+          "testedBy": "Budi Santoso, S.T.",
+          "testDate": "2026-09-17",
+          "notes": "Hasil ukur stabil tidak ada bending loss.",
+          "fileName": "OTDR_TRACE_CORE_02_SENTUL.sor",
+          "createdAt": "2026-09-17T14:30:00.000Z"
+        },
+        {
+          "id": "otdr-003",
+          "testId": "OTDR-003",
+          "fiberCore": "Core 03 (SM)",
+          "direction": "A -> B",
+          "distanceKm": 45.15,
+          "totalLossDb": 18.2,
+          "eventLossDb": 2.1,
+          "result": "FAIL",
+          "wavelength": "1550 nm",
+          "testedBy": "Dedi (Splicer)",
+          "testDate": "2026-09-18",
+          "notes": "Splicing loss pada Closure C-02 melebihi batas 0.1 dB.",
+          "fileName": "OTDR_TRACE_CORE_03_FAIL.sor",
+          "createdAt": "2026-09-18T09:30:00.000Z"
+        }
+      ],
+      "defects": [
+        {
+          "id": "punch-001",
+          "punchId": "PUNCH-01",
+          "description": "Splicing loss pada Core 03 melebihi batas 0.1 dB di Closure C-02",
+          "location": "Closure C-02 KM 22.4",
+          "severity": "Major",
+          "pic": "Dedi (Splicer)",
+          "reportDate": "2026-09-18",
+          "dueDate": "2026-09-22",
+          "status": "In Correction",
+          "resolutionNotes": "Re-splicing ulang core 03 terjadwal hari ini dengan fusion splicer terkalibrasi.",
+          "createdAt": "2026-09-18T10:00:00.000Z",
+          "updatedAt": "2026-09-18T11:00:00.000Z"
+        },
+        {
+          "id": "punch-002",
+          "punchId": "PUNCH-02",
+          "description": "Labeling kabel di ODC Sentul belum rapi dan nomor core pudar",
+          "location": "ODC Sentul Rack 01",
+          "severity": "Minor",
+          "pic": "Budi Santoso, S.T.",
+          "reportDate": "2026-09-17",
+          "dueDate": "2026-09-19",
+          "status": "Closed",
+          "resolutionNotes": "Pemasangan label tahan air baru telah selesai diverifikasi oleh pengawas lapangan.",
+          "createdAt": "2026-09-17T15:00:00.000Z",
+          "updatedAt": "2026-09-18T08:00:00.000Z"
+        }
+      ],
+      "bauts": [
+        {
+          "id": "baut-001",
+          "bautNumber": "BAUT-2026-089",
+          "title": "Berita Acara Uji Terima (BA UT) Fisik & Continuity Segment 1",
+          "clientName": "PT Telkom Indonesia",
+          "date": "2026-09-18",
+          "status": "Ready for Sign-off",
+          "signatoryVendor": "Budi Santoso, S.T.",
+          "signatoryClient": "Ir. Hendra Wijaya (Telkom Witel)",
+          "scopeCovered": "Galian 4.5 KM, Tarik Kabel 24 Core, Terminasi ODC Sentul",
+          "notes": "Telah dilakukan uji fisik bersama tim teknis Telkom dan mitra.",
+          "documentName": "BAUT_0001_YOI_SEG1_SIGNED.pdf",
+          "createdAt": "2026-09-18T14:00:00.000Z",
+          "updatedAt": "2026-09-18T15:00:00.000Z"
+        }
+      ],
+      "asBuiltDocs": [
+        {
+          "id": "abd-001",
+          "name": "As-Built Drawing Route Sentul Feeder Segment 1.pdf",
+          "category": "Engineering",
+          "size": "12.4 MB",
+          "date": "2026-09-18",
+          "status": "Final Verified",
+          "notes": "Gambar rute final telah diverifikasi oleh tim survey & pengawas lapangan.",
+          "createdAt": "2026-09-18T15:00:00.000Z"
+        },
+        {
+          "id": "abd-002",
+          "name": "Final KML Realization Route Sentul.kml",
+          "category": "GIS Spatial",
+          "size": "3.1 MB",
+          "date": "2026-09-18",
+          "status": "Final Verified",
+          "notes": "Titik koordinat handhole, joint closure, dan span tiang OSP tervalidasi GIS.",
+          "createdAt": "2026-09-18T15:15:00.000Z"
+        },
+        {
+          "id": "abd-003",
+          "name": "Fiber Core Splice Mapping & ODF Chart.pdf",
+          "category": "Engineering",
+          "size": "4.8 MB",
+          "date": "2026-09-18",
+          "status": "Final Verified",
+          "notes": "Peta sambungan tray core 1-24 pada ODC Sentul dan Closure C-01/C-02.",
+          "createdAt": "2026-09-18T15:30:00.000Z"
+        }
+      ],
+      "assets": [
+        {
+          "id": "ast-001",
+          "assetId": "AST-CAB-001",
+          "type": "Cable Asset",
+          "specification": "Kabel Fiber Optik ADSS 24 Core Single Mode",
+          "location": "Span ODC Sentul s/d Tiang 22 (4.85 KM)",
+          "warranty": "24 Bulan Garansi (Exp: Sep 2028)",
+          "vendor": "PT Voksel Electric Tbk",
+          "status": "Active / Transferred",
+          "notes": "Serah terima aset kabel jalur feeder utama.",
+          "createdAt": "2026-09-18T16:00:00.000Z"
+        },
+        {
+          "id": "ast-002",
+          "assetId": "AST-CLS-001",
+          "type": "Closure Asset",
+          "specification": "Dome Joint Closure IP68 24 Core",
+          "location": "Closure C-01 & C-02 Sentul",
+          "warranty": "12 Bulan Garansi (Exp: Sep 2027)",
+          "vendor": "PT Fiber Solution Indonesia",
+          "status": "Active / Transferred",
+          "notes": "Kondisi seal kedap air terpasang sempurna di handhole.",
+          "createdAt": "2026-09-18T16:10:00.000Z"
+        },
+        {
+          "id": "ast-003",
+          "assetId": "AST-ODC-001",
+          "type": "ODF Asset",
+          "specification": "Outdoor Distribution Cabinet (ODC) 144 Core",
+          "location": "ODC Sentul KM 1.0",
+          "warranty": "24 Bulan Garansi (Exp: Sep 2028)",
+          "vendor": "PT Optik Nusantara",
+          "status": "Active / Transferred",
+          "notes": "Kabinet lengkap grounding dan proteksi petir.",
+          "createdAt": "2026-09-18T16:20:00.000Z"
+        }
+      ],
+      "profitability": {
+        "contractValue": 1500000000,
+        "actualCapex": 1050000000,
+        "actualOpex": 120000000,
+        "rabBudget": 1200000000,
+        "notes": "Proyek diselesaikan dengan margin positif 22% (Rp 330.000.000) terhadap nilai kontrak.",
+        "rootCauses": [
+          {
+            "id": "rc-1",
+            "title": "1. Deviasi Batuan Keras di Handhole 03 (+Rp 15.000.000)",
+            "description": "Diperlukan sewa tambahan alat jackhammer pneumatik selama 2 hari untuk penembusan batu kali.",
+            "impactAmount": 15000000,
+            "impactLevel": "Moderate"
+          },
+          {
+            "id": "rc-2",
+            "title": "2. Pekerjaan Lembur Malam Crossing Jalan Raya (+Rp 12.500.000)",
+            "description": "Pengalihan jam kerja penyeberangan kabel ke malam hari untuk menghindari kemacetan lalu lintas.",
+            "impactAmount": 12500000,
+            "impactLevel": "Moderate"
+          }
+        ],
+        "updatedAt": "2026-09-18T16:30:00.000Z"
+      }
     }
   ],
   "materialMasters": [
@@ -24,9 +573,9 @@
       "specification": "Single Mode, G.652D, Span 100m",
       "unit": "Meter",
       "minimumStock": 1000,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 8500,
+      "price": 8500,
+      "isActive": true
     },
     {
       "id": "mat-2",
@@ -36,9 +585,9 @@
       "specification": "Single Mode, G.652D",
       "unit": "Meter",
       "minimumStock": 500,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 14000,
+      "price": 14000,
+      "isActive": true
     },
     {
       "id": "mat-3",
@@ -48,9 +597,9 @@
       "specification": "Hot Dip Galvanized",
       "unit": "batang",
       "minimumStock": 50,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 850000,
+      "price": 850000,
+      "isActive": true
     },
     {
       "id": "mat-4",
@@ -60,9 +609,9 @@
       "specification": "Hot Dip Galvanized",
       "unit": "batang",
       "minimumStock": 30,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 1100000,
+      "price": 1100000,
+      "isActive": true
     },
     {
       "id": "mat-5",
@@ -72,9 +621,9 @@
       "specification": "Waterproof IP68, 4 Tray @12 Core",
       "unit": "pcs",
       "minimumStock": 40,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 275000,
+      "price": 275000,
+      "isActive": true
     },
     {
       "id": "mat-6",
@@ -84,33 +633,93 @@
       "specification": "Outdoor IP65 Powder Coated",
       "unit": "unit",
       "minimumStock": 10,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 4500000,
+      "price": 4500000,
+      "isActive": true
     },
     {
       "id": "mat-7",
+      "materialCode": "ODP-SOLID-16C",
+      "materialName": "Optical Distribution Point 16 Core",
+      "category": "ODP",
+      "specification": "Splitter 1:16 PLC Modular",
+      "unit": "unit",
+      "minimumStock": 25,
+      "unitPrice": 550000,
+      "price": 550000,
+      "isActive": true
+    },
+    {
+      "id": "mat-8",
+      "materialCode": "ODP-SOLID-8C",
+      "materialName": "Optical Distribution Point 8 Core",
+      "category": "ODP",
+      "specification": "Splitter 1:8 PLC Modular",
+      "unit": "unit",
+      "minimumStock": 25,
+      "unitPrice": 350000,
+      "price": 350000,
+      "isActive": true
+    },
+    {
+      "id": "mat-9",
       "materialCode": "PRECAST-MH-TYP-B",
       "materialName": "Precast Manhole Beton Type B",
       "category": "CIVIL",
       "specification": "Ukuran 200x120x150cm K-350",
       "unit": "unit",
       "minimumStock": 15,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 3200000,
+      "price": 3200000,
+      "isActive": true
     },
     {
-      "id": "mat-8",
+      "id": "mat-10",
       "materialCode": "HDPE-SUBDUCT-32",
       "materialName": "Subduct Pipa HDPE 32/28 mm",
       "category": "OSP",
       "specification": "Roll @500 Meter Warna Orange",
       "unit": "Meter",
       "minimumStock": 2000,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 6500,
+      "price": 6500,
+      "isActive": true
+    },
+    {
+      "id": "mat-11",
+      "materialCode": "ACC-POLE-SET",
+      "materialName": "Aksesoris Tiang & Bracket Suspension",
+      "category": "ACCESSORIES",
+      "specification": "Bracket, Suspension Clamp, Banding 20mm",
+      "unit": "set",
+      "minimumStock": 100,
+      "unitPrice": 75000,
+      "price": 75000,
+      "isActive": true
+    },
+    {
+      "id": "mat-12",
+      "materialCode": "SRV-PULL-FO",
+      "materialName": "Jasa Penarikan Kabel FO Udara/Duct",
+      "category": "SERVICE",
+      "specification": "Penarikan kabel fiber optik, tagging, sagging",
+      "unit": "m",
+      "minimumStock": 0,
+      "unitPrice": 3500,
+      "price": 3500,
+      "isActive": true
+    },
+    {
+      "id": "mat-13",
+      "materialCode": "SRV-PLANT-POLE",
+      "materialName": "Jasa Pendirian & Penanaman Tiang",
+      "category": "SERVICE",
+      "specification": "Gali lubang, tanam tiang 7/9m, cor pondasi",
+      "unit": "titik",
+      "minimumStock": 0,
+      "unitPrice": 150000,
+      "price": 150000,
+      "isActive": true
     }
   ],
   "users": [
@@ -148,9 +757,9 @@
       "specification": "Single Mode, G.652D, Span 100m",
       "unit": "Meter",
       "minimumStock": 1000,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 8500,
+      "price": 8500,
+      "isActive": true
     },
     {
       "id": "mat-2",
@@ -160,9 +769,9 @@
       "specification": "Single Mode, G.652D",
       "unit": "Meter",
       "minimumStock": 500,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 14000,
+      "price": 14000,
+      "isActive": true
     },
     {
       "id": "mat-3",
@@ -172,9 +781,9 @@
       "specification": "Hot Dip Galvanized",
       "unit": "batang",
       "minimumStock": 50,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 850000,
+      "price": 850000,
+      "isActive": true
     },
     {
       "id": "mat-4",
@@ -184,9 +793,9 @@
       "specification": "Hot Dip Galvanized",
       "unit": "batang",
       "minimumStock": 30,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 1100000,
+      "price": 1100000,
+      "isActive": true
     },
     {
       "id": "mat-5",
@@ -196,9 +805,9 @@
       "specification": "Waterproof IP68, 4 Tray @12 Core",
       "unit": "pcs",
       "minimumStock": 40,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 275000,
+      "price": 275000,
+      "isActive": true
     },
     {
       "id": "mat-6",
@@ -208,33 +817,93 @@
       "specification": "Outdoor IP65 Powder Coated",
       "unit": "unit",
       "minimumStock": 10,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 4500000,
+      "price": 4500000,
+      "isActive": true
     },
     {
       "id": "mat-7",
+      "materialCode": "ODP-SOLID-16C",
+      "materialName": "Optical Distribution Point 16 Core",
+      "category": "ODP",
+      "specification": "Splitter 1:16 PLC Modular",
+      "unit": "unit",
+      "minimumStock": 25,
+      "unitPrice": 550000,
+      "price": 550000,
+      "isActive": true
+    },
+    {
+      "id": "mat-8",
+      "materialCode": "ODP-SOLID-8C",
+      "materialName": "Optical Distribution Point 8 Core",
+      "category": "ODP",
+      "specification": "Splitter 1:8 PLC Modular",
+      "unit": "unit",
+      "minimumStock": 25,
+      "unitPrice": 350000,
+      "price": 350000,
+      "isActive": true
+    },
+    {
+      "id": "mat-9",
       "materialCode": "PRECAST-MH-TYP-B",
       "materialName": "Precast Manhole Beton Type B",
       "category": "CIVIL",
       "specification": "Ukuran 200x120x150cm K-350",
       "unit": "unit",
       "minimumStock": 15,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 3200000,
+      "price": 3200000,
+      "isActive": true
     },
     {
-      "id": "mat-8",
+      "id": "mat-10",
       "materialCode": "HDPE-SUBDUCT-32",
       "materialName": "Subduct Pipa HDPE 32/28 mm",
       "category": "OSP",
       "specification": "Roll @500 Meter Warna Orange",
       "unit": "Meter",
       "minimumStock": 2000,
-      "isActive": true,
-      "createdAt": "2026-01-01T08:00:00.000Z",
-      "updatedAt": "2026-01-01T08:00:00.000Z"
+      "unitPrice": 6500,
+      "price": 6500,
+      "isActive": true
+    },
+    {
+      "id": "mat-11",
+      "materialCode": "ACC-POLE-SET",
+      "materialName": "Aksesoris Tiang & Bracket Suspension",
+      "category": "ACCESSORIES",
+      "specification": "Bracket, Suspension Clamp, Banding 20mm",
+      "unit": "set",
+      "minimumStock": 100,
+      "unitPrice": 75000,
+      "price": 75000,
+      "isActive": true
+    },
+    {
+      "id": "mat-12",
+      "materialCode": "SRV-PULL-FO",
+      "materialName": "Jasa Penarikan Kabel FO Udara/Duct",
+      "category": "SERVICE",
+      "specification": "Penarikan kabel fiber optik, tagging, sagging",
+      "unit": "m",
+      "minimumStock": 0,
+      "unitPrice": 3500,
+      "price": 3500,
+      "isActive": true
+    },
+    {
+      "id": "mat-13",
+      "materialCode": "SRV-PLANT-POLE",
+      "materialName": "Jasa Pendirian & Penanaman Tiang",
+      "category": "SERVICE",
+      "specification": "Gali lubang, tanam tiang 7/9m, cor pondasi",
+      "unit": "titik",
+      "minimumStock": 0,
+      "unitPrice": 150000,
+      "price": 150000,
+      "isActive": true
     }
   ],
   "systemUsers": [
@@ -268,6 +937,99 @@
       "status": "ACTIVE",
       "email": "owner@mai.co.id",
       "createdAt": "2026-09-14T09:30:56.549Z"
+    },
+    {
+      "id": "f2ae8c76-1065-41af-b892-4a7e76f6a990",
+      "username": "budi.santoso",
+      "fullName": "Budi Santoso, S.T.",
+      "password": "sm12345",
+      "role": "SITE MANAGER",
+      "status": "ACTIVE",
+      "email": "budi.santoso@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z"
+    },
+    {
+      "id": "usr-dedi-mulyadi-002",
+      "username": "dedi.mulyadi",
+      "fullName": "Dedi Mulyadi",
+      "password": "sm12345",
+      "role": "SITE MANAGER",
+      "status": "ACTIVE",
+      "email": "dedi.mulyadi@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z"
+    },
+    {
+      "id": "usr-ahmad-hidayat-003",
+      "username": "ahmad.hidayat",
+      "fullName": "Ahmad Hidayat",
+      "password": "pm12345",
+      "role": "PROJECT MANAGER",
+      "status": "ACTIVE",
+      "email": "ahmad.hidayat@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z"
+    },
+    {
+      "id": "usr-dewi-lestari-004",
+      "username": "dewi.lestari",
+      "fullName": "Dewi Lestari, S.E.",
+      "password": "pc12345",
+      "role": "PROJECT CONTROLLER",
+      "status": "ACTIVE",
+      "email": "dewi.lestari@mai.co.id",
+      "createdAt": "2026-09-14T09:30:56.549Z"
+    }
+  ],
+  "permits": [
+    {
+      "id": "pmt-001",
+      "projectId": "1d7b24bc-50b5-4993-a4f2-cd2f835cd856",
+      "siteId": "SITE-SENTUL-01",
+      "category": "PU Kota / Kab",
+      "status": "Perizinan",
+      "progressDetail": "2.4 Survey lokasi bersama PU",
+      "targetDate": "2026-09-30",
+      "picName": "Budi Santoso, S.T.",
+      "cost": 2500000,
+      "notes": "Menunggu jadwal survey lapangan bersama staf Dinas Bina Marga.",
+      "checklist": {
+        "PU Kota / Kab": "4"
+      },
+      "createdAt": "2026-09-17T08:00:00.000Z",
+      "updatedAt": "2026-09-18T10:00:00.000Z"
+    },
+    {
+      "id": "pmt-002",
+      "projectId": "1d7b24bc-50b5-4993-a4f2-cd2f835cd856",
+      "siteId": "SITE-SENTUL-02",
+      "category": "PU Nas",
+      "status": "Aanwijzing",
+      "progressDetail": "1.2 Penjadwalan aanwijzing",
+      "targetDate": "2026-10-10",
+      "picName": "Budi Santoso, S.T.",
+      "cost": 5000000,
+      "notes": "Pengajuan rekomendasi teknis crossing jalan nasional KM 37.",
+      "checklist": {
+        "PU Nas": "3"
+      },
+      "createdAt": "2026-09-17T09:30:00.000Z",
+      "updatedAt": "2026-09-18T10:00:00.000Z"
+    },
+    {
+      "id": "pmt-003",
+      "projectId": "1d7b24bc-50b5-4993-a4f2-cd2f835cd856",
+      "siteId": "SITE-SENTUL-03",
+      "category": "Izin Warga / Lingkungan",
+      "status": "Instalasi",
+      "progressDetail": "4.4 Proses Penanaman Tiang",
+      "targetDate": "2026-09-25",
+      "picName": "Ahmad Hidayat",
+      "cost": 1500000,
+      "notes": "Sosialisasi dan koordinasi bersama RW 05 dan tokoh masyarakat selesai.",
+      "checklist": {
+        "Izin Warga / Lingkungan": "7"
+      },
+      "createdAt": "2026-09-18T07:15:00.000Z",
+      "updatedAt": "2026-09-18T10:00:00.000Z"
     }
   ]
 }

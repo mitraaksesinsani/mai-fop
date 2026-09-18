@@ -95,7 +95,58 @@ ALTER TABLE public.bowheers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public access bowheers" ON public.bowheers;
 CREATE POLICY "Allow public access bowheers" ON public.bowheers FOR ALL USING (true) WITH CHECK (true);
 
--- 6. DATA AWAL (SEED DATA)
+-- 6. TABEL PROJECT DESIGNATOR ITEMS (DRM Plan, Volume Target, Bobot & Progres Harian)
+CREATE TABLE IF NOT EXISTS public.project_designator_items (
+  id VARCHAR(100) PRIMARY KEY,
+  project_id VARCHAR(100) REFERENCES public.projects(id) ON DELETE CASCADE,
+  id_volume VARCHAR(100) NOT NULL,
+  kode_designator VARCHAR(100) NOT NULL,
+  uraian_pekerjaan TEXT NOT NULL,
+  jenis VARCHAR(50) NOT NULL DEFAULT 'Galian',
+  satuan VARCHAR(50) NOT NULL DEFAULT 'Meter',
+  volume_target NUMERIC(15, 2) DEFAULT 0,
+  bobot_persen NUMERIC(8, 4) DEFAULT 0,
+  daily_volumes JSONB DEFAULT '{}'::jsonb,
+  daily_records JSONB DEFAULT '{}'::jsonb,
+  change_history JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.project_designator_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public access project_designator_items" ON public.project_designator_items;
+CREATE POLICY "Allow public access project_designator_items" ON public.project_designator_items FOR ALL USING (true) WITH CHECK (true);
+
+-- 7. TABEL PROJECT PERMITS (Data Perizinan Site, Tahapan Progress, Dokumen & Retribusi)
+CREATE TABLE IF NOT EXISTS public.project_permits (
+  id VARCHAR(100) PRIMARY KEY,
+  project_id VARCHAR(100) REFERENCES public.projects(id) ON DELETE CASCADE,
+  site_id VARCHAR(100) NOT NULL,
+  category VARCHAR(100) NOT NULL DEFAULT 'PU Kota / Kab',
+  status VARCHAR(50) NOT NULL DEFAULT 'Perizinan',
+  progress_detail VARCHAR(255),
+  target_date DATE,
+  actual_date DATE,
+  pic_name VARCHAR(255),
+  cost NUMERIC(15, 2) DEFAULT 0,
+  notes TEXT,
+  checklist JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.project_permits ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public access project_permits" ON public.project_permits;
+CREATE POLICY "Allow public access project_permits" ON public.project_permits FOR ALL USING (true) WITH CHECK (true);
+
+-- Kolom jsonb cadangan pada tabel projects untuk sinkronisasi cepat
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS designator_items JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS survey_route JSONB;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS survey_validation JSONB;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS survey_kml JSONB;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS permits JSONB DEFAULT '[]'::jsonb;
+
+-- 8. DATA AWAL (SEED DATA)
 INSERT INTO public.users (username, name, password, role)
 VALUES 
   ('admin', 'Super Administrator', 'admin123', 'ADMIN'),
@@ -115,4 +166,5 @@ VALUES
   ('bwh-7', 'BMRI', 'Bank Mandiri', 'Bank Mandiri (Persero) Tbk', 'Perbankan / Finansial', 'Tri Wahyuni', 'it.infrastructure@bankmandiri.co.id', '021-5265000', 'Plaza Mandiri, Jl. Jend. Gatot Subroto Kav. 36-38, Jakarta Selatan', 'ACTIVE'),
   ('bwh-8', 'FMI', 'PT Fiber Media Indonesia', 'Fiber Media', 'Enterprise / Swasta', 'Agus Setiawan', 'info@fibermedia.co.id', '021-29001234', 'Kawasan Industri Pulogadung, Jakarta Timur', 'ACTIVE')
 ON CONFLICT (code) DO NOTHING;
+
 

@@ -18,8 +18,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -60,10 +58,11 @@ import {
   formatDisplayDate,
   getItemDailyVolume,
 } from "@/lib/designatorProgress";
-import { History, Pencil, User } from "lucide-react";
+import { History, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { MASTER_DESIGNATOR_DATA, MASTER_ALAT_KERJA_DATA } from "@/lib/constants/masterData";
+import { saveDailyReportNoteAction } from "@/app/actions/projects";
 
 interface CumulativeProgressTableProps {
   items: DesignatorItem[];
@@ -119,9 +118,6 @@ export default function CumulativeProgressTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDailyModalOpen, setIsAddDailyModalOpen] = useState(false);
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<
-    "PMO" | "Site Manager"
-  >("Site Manager");
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
   const [isDeleteItemModalOpen, setIsDeleteItemModalOpen] = useState(false);
 
@@ -437,7 +433,7 @@ export default function CumulativeProgressTable({
       return item;
     });
 
-    // Simpan juga ke localStorage catatan harian proyek
+    // Simpan juga ke database server & localStorage catatan harian proyek
     const storageKey = projectId ? `project_daily_notes_${projectId}_${selectedDate}` : `daily_notes_${selectedDate}`;
     try {
       localStorage.setItem(storageKey, JSON.stringify({
@@ -447,6 +443,15 @@ export default function CumulativeProgressTable({
       }));
     } catch (err) {
       console.error("Failed to save daily notes", err);
+    }
+
+    if (projectId) {
+      saveDailyReportNoteAction(projectId, selectedDate, {
+        kendala: inputKendala || undefined,
+        solusi: inputSolusi || undefined,
+        tenagaKerja: selectedMandor ? `${selectedMandor} (8 Orang)` : undefined,
+        alatBerat: selectedAlatKerja || undefined,
+      }).catch((err) => console.warn("Failed to sync daily notes to db:", err));
     }
 
     onUpdateItems(updated);
@@ -492,37 +497,7 @@ export default function CumulativeProgressTable({
   return (
     <Card className="border-0 shadow-none bg-transparent overflow-hidden">
       {/* Header Utama dengan Action Buttons */}
-      <CardHeader className="p-0 pb-4 space-y-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base font-semibold">
-              Tabel Aktual Kumulatif Progress Pekerjaan
-            </CardTitle>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-[10pt] text-muted-foreground flex items-center gap-1">
-              <User className="w-3.5 h-3.5" /> Simulasi Role:
-            </span>
-            <div className="flex bg-muted/50 rounded-md p-0.5 border">
-              <button
-                onClick={() => setCurrentUserRole("PMO")}
-                className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "PMO" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
-              >
-                PMO
-              </button>
-              <button
-                onClick={() => setCurrentUserRole("Site Manager")}
-                className={`text-[10pt] px-2 py-1 rounded-sm transition-colors ${currentUserRole === "Site Manager" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:bg-background/50"}`}
-              >
-                Site Manager
-              </button>
-            </div>
-          </div>
-          <CardDescription className="text-[10pt] mt-0.5">
-            Rekapitulasi volume aktual harian per tanggal dan akumulasi
-            kumulatif terhadap target
-          </CardDescription>
-        </div>
+      <CardHeader className="p-0">
 
         {/* Modal Tambah Item Pekerjaan Baru */}
         <Dialog open={isAddItemModalOpen} onOpenChange={setIsAddItemModalOpen}>
@@ -927,14 +902,15 @@ export default function CumulativeProgressTable({
           </DialogContent>
         </Dialog>
 
-        {/* Toolbar: Filter Dropdown, Action Buttons & Search Box */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+        {/* Toolbar: Filter Dropdown, Search Box & Action Buttons */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mt-1.5 mb-4">
+          {/* Filter Jenis & Search Box (Sebelah Kiri) */}
           <div className="flex flex-wrap items-center gap-2">
             <Select
               value={selectedJenis}
               onValueChange={(val) => setSelectedJenis(val || "Semua Jenis")}
             >
-              <SelectTrigger className="w-[180px] min-h-[44px] h-11 data-[size=default]:h-11 text-[10pt] bg-background rounded-lg px-3.5">
+              <SelectTrigger className="w-[180px] h-10 data-[size=default]:h-10 text-[10pt] bg-background rounded-lg px-3.5">
                 <SelectValue placeholder="Pilih Jenis" />
               </SelectTrigger>
               <SelectContent>
@@ -946,6 +922,20 @@ export default function CumulativeProgressTable({
               </SelectContent>
             </Select>
 
+            {/* Search Box */}
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Cari ID, Designator..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 text-[10pt] bg-background rounded-lg"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons (Sebelah Kanan) */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {/* Tombol Tambah Item Pekerjaan Baru */}
             <Button
               variant="outline"
@@ -968,7 +958,7 @@ export default function CumulativeProgressTable({
               <span>Tambah Item Pekerjaan</span>
             </Button>
 
-            {/* Tombol Update Progress Harian */}
+            {/* Tombol Update Progress */}
             <Button
               className="text-[10pt] font-medium flex items-center gap-1.5 shadow-sm h-10 rounded-lg px-3.5"
               disabled={items.length === 0}
@@ -980,7 +970,7 @@ export default function CumulativeProgressTable({
               }
             >
               <Calendar className="w-4 h-4" />
-              <span>Update Progress Harian</span>
+              <span>Update Progress</span>
             </Button>
 
             {items.length > 0 && (
@@ -995,24 +985,13 @@ export default function CumulativeProgressTable({
               </Button>
             )}
           </div>
-
-          {/* Search Box */}
-          <div className="relative w-full lg:w-64 shrink-0">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari ID, Designator..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 min-h-[44px] h-11 text-[10pt] bg-background rounded-lg"
-            />
-          </div>
         </div>
       </CardHeader>
 
       {/* Tabel dengan Freeze Columns (ID Volume s/d Jenis) dan scroll ke kanan per tanggal */}
       <CardContent className="p-0">
         {items.length === 0 ? (
-          <div className="py-16 px-6 flex flex-col items-center justify-center text-center bg-muted/5 rounded-xl border border-dashed border-border/80 m-4 sm:m-6">
+          <div className="py-16 px-6 flex flex-col items-center justify-center text-center bg-muted/5 rounded-xl border border-dashed border-border/80 my-4 w-full">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
               <Layers className="w-7 h-7" />
             </div>
