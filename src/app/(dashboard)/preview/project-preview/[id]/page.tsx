@@ -18,12 +18,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import SCurveChart from '@/components/projects/SCurveChart';
 import CumulativeProgressTable from '@/components/projects/CumulativeProgressTable';
 import {
-  DEFAULT_DESIGNATOR_ITEMS,
   DesignatorItem,
   calculateOverallProjectProgress,
   generateSCurveData,
 } from '@/lib/designatorProgress';
 import { useProject, Project } from '@/context/ProjectContext';
+import { getDesignatorProgressAction } from '@/app/actions/projects';
 
 export default function ProjectPreviewProgressPage() {
   const params = useParams<{ id: string }>();
@@ -32,33 +32,45 @@ export default function ProjectPreviewProgressPage() {
 
   const decodedId = decodeURIComponent(params?.id || '');
 
-  // Cari proyek dari context, atau sediakan fallback dinamis jika UUID baru
-  const foundProject = projects.find((p) => p.id === decodedId);
-  const project: Project = foundProject || {
-    id: decodedId,
-    name: `Proyek Fiber Optik (${decodedId.slice(0, 8)})`,
-    customer: 'PT Telkomsel Tbk',
-    type: 'Backbone Fiber',
-    location: 'Wilayah Operasional Indonesia',
-    contractNo: `CTR/FO/${decodedId.slice(0, 8).toUpperCase()}/2026`,
-    startDate: '2026-09-01',
-    targetDate: '2026-09-14',
-    status: 'Implementation',
-  };
+  // Cari proyek dari context / database
+  const project = projects.find((p) => p.id === decodedId);
 
   const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>([]);
 
   React.useEffect(() => {
     if (!decodedId) return;
-    try {
+    getDesignatorProgressAction(decodedId).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setDesignatorItems(res.data);
+      } else {
+        const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
+        if (saved) {
+          try {
+            setDesignatorItems(JSON.parse(saved));
+          } catch (e) {}
+        }
+      }
+    }).catch(() => {
       const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
       if (saved) {
-        setDesignatorItems(JSON.parse(saved));
+        try {
+          setDesignatorItems(JSON.parse(saved));
+        } catch (e) {}
       }
-    } catch (e) {
-      console.error(e);
-    }
+    });
   }, [decodedId]);
+
+  if (!project) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <h2 className="text-xl font-bold text-foreground">Proyek Tidak Ditemukan</h2>
+        <p className="text-sm text-muted-foreground">Proyek dengan ID &quot;{decodedId}&quot; tidak ditemukan.</p>
+        <Button onClick={() => router.push('/')} variant="outline" className="text-[13px] px-3 py-1.5 h-auto">
+          Kembali ke Daftar Proyek
+        </Button>
+      </div>
+    );
+  }
 
   // Kalkulasi dinamis Kurva S dan Progress Kumulatif
   const progressMetrics = calculateOverallProjectProgress(designatorItems);

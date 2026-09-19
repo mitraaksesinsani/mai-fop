@@ -91,6 +91,19 @@ export interface ServerSystemUser {
   updatedAt?: string;
 }
 
+export interface ServerMandor {
+  id: string;
+  code: string;
+  name: string;
+  phone?: string;
+  specialization?: string;
+  teamSize?: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface DatabaseSchema {
   _initialized?: Record<string, boolean>;
   bowheers: ServerBowheer[];
@@ -100,6 +113,7 @@ export interface DatabaseSchema {
   vendors: ServerVendor[];
   warehouses: ServerWarehouse[];
   systemUsers: ServerSystemUser[];
+  mandors: ServerMandor[];
   projects?: any[];
   users?: any[];
   [key: string]: any;
@@ -302,6 +316,64 @@ export const INITIAL_SYSTEM_USERS: ServerSystemUser[] = [
   },
 ];
 
+const INITIAL_MANDORS: ServerMandor[] = [
+  {
+    id: 'mdr-1',
+    code: 'MDR-001',
+    name: 'Budi Santoso',
+    phone: '0812-3456-7890',
+    specialization: 'Galian & Boring',
+    teamSize: 8,
+    status: 'ACTIVE',
+    notes: 'Mandor spesialis galian manual dan boring crossing jalan raya',
+    createdAt: '2026-09-15T08:00:00.000Z',
+  },
+  {
+    id: 'mdr-2',
+    code: 'MDR-002',
+    name: 'Agus Supriyadi',
+    phone: '0813-9876-5432',
+    specialization: 'Penarikan Kabel (FO)',
+    teamSize: 6,
+    status: 'ACTIVE',
+    notes: 'Berpengalaman penarikan kabel udara dan kabel duct subduct',
+    createdAt: '2026-09-15T08:30:00.000Z',
+  },
+  {
+    id: 'mdr-3',
+    code: 'MDR-003',
+    name: 'Joko Anwar',
+    phone: '0852-1122-3344',
+    specialization: 'Splicing & Terminasi',
+    teamSize: 4,
+    status: 'ACTIVE',
+    notes: 'Teknisi senior joint closure, OTB/ODC dan pengukuran OTDR',
+    createdAt: '2026-09-15T09:00:00.000Z',
+  },
+  {
+    id: 'mdr-4',
+    code: 'MDR-004',
+    name: 'Hendro Prasetyo',
+    phone: '0878-5544-3322',
+    specialization: 'Pemasangan Tiang & Aksesoris',
+    teamSize: 6,
+    status: 'ACTIVE',
+    notes: 'Penanaman tiang besi 7m/9m dan penarikan suspension clamp',
+    createdAt: '2026-09-16T10:00:00.000Z',
+  },
+  {
+    id: 'mdr-5',
+    code: 'MDR-005',
+    name: 'Slamet Riyadi',
+    phone: '0821-6677-8899',
+    specialization: 'Civil Work & Pemulihan (Restorasi)',
+    teamSize: 5,
+    status: 'ACTIVE',
+    notes: 'Restorasi cor jalan, paving block, dan perapihan crossing',
+    createdAt: '2026-09-16T11:00:00.000Z',
+  },
+];
+
 let writeLock: Promise<void> = Promise.resolve();
 
 export async function readServerDb(): Promise<DatabaseSchema> {
@@ -325,6 +397,7 @@ export async function readServerDb(): Promise<DatabaseSchema> {
       vendors: [],
       warehouses: [],
       systemUsers: [],
+      mandors: [],
     };
 
     if (fileContent.trim()) {
@@ -406,6 +479,15 @@ export async function readServerDb(): Promise<DatabaseSchema> {
       hasChanges = true;
     }
 
+    // Seed Mandors
+    if (!parsed._initialized.mandors) {
+      if (!Array.isArray(parsed.mandors) || parsed.mandors.length === 0) {
+        parsed.mandors = INITIAL_MANDORS;
+      }
+      parsed._initialized.mandors = true;
+      hasChanges = true;
+    }
+
     if (hasChanges) {
       await writeServerDb(parsed);
     }
@@ -422,6 +504,7 @@ export async function readServerDb(): Promise<DatabaseSchema> {
       vendors: INITIAL_VENDORS,
       warehouses: INITIAL_WAREHOUSES,
       systemUsers: INITIAL_SYSTEM_USERS,
+      mandors: INITIAL_MANDORS,
     };
   }
 }

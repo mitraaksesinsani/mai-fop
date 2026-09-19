@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -8,16 +8,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, CheckCircle2, Clock, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useProject } from '@/context/ProjectContext';
+import { toast } from 'sonner';
+
+interface ApprovalItem {
+  id: string;
+  projectId: string;
+  module: string;
+  project: string;
+  requestor: string;
+  target: string;
+  date: string;
+  status: string;
+}
 
 export default function ApprovalsPage() {
+  const { projects, updateProject } = useProject();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [approvedIds, setApprovedIds] = useState<Record<string, boolean>>({});
 
-  const approvals = [
-    { id: 'APP-001', module: 'DRM Final Baseline', project: 'PRJ-2026-001', requestor: 'Budi (Project Manager)', target: 'Commercial Director', date: '2026-02-10', status: 'Pending Approval' },
-    { id: 'APP-002', module: 'BAUT Acceptance', project: 'PRJ-2026-004', requestor: 'Dewi (QA/QC)', target: 'Customer Technical Lead', date: '2026-03-12', status: 'Pending Approval' },
-    { id: 'APP-003', module: 'BOQ Scope Revision', project: 'PRJ-2026-002', requestor: 'Ahmad (Field PM)', target: 'Operations Director', date: '2026-02-05', status: 'Approved' },
-  ];
+  const approvals: ApprovalItem[] = useMemo(() => {
+    return projects.flatMap((p) => {
+      const items: ApprovalItem[] = [];
+      const isApproved = approvedIds[p.id];
+      if (p.status === 'Planning' || isApproved) {
+        items.push({
+          id: `APP-${p.id.slice(0, 6).toUpperCase()}-DRM`,
+          projectId: p.id,
+          module: 'DRM Final Baseline',
+          project: `${p.contractNo || p.id} (${p.name})`,
+          requestor: p.manager || 'Project Manager',
+          target: 'Commercial Director',
+          date: p.startDate || new Date().toISOString().split('T')[0],
+          status: isApproved ? 'Approved' : 'Pending Approval',
+        });
+      }
+      return items;
+    });
+  }, [projects, approvedIds]);
+
+  const handleApprove = (item: ApprovalItem) => {
+    setApprovedIds((prev) => ({ ...prev, [item.projectId]: true }));
+    updateProject(item.projectId, { status: 'Implementation' });
+    toast.success(`Milestone untuk proyek ${item.project} berhasil disetujui!`);
+  };
 
   const filteredApprovals = approvals.filter((a) => {
     const matchesSearch =
@@ -111,7 +146,11 @@ export default function ApprovalsPage() {
                           Approved
                         </Badge>
                       ) : (
-                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(a)}
+                          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+                        >
                           Approve Milestone
                         </Button>
                       )}

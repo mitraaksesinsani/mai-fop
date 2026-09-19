@@ -129,7 +129,10 @@ export default function SCurveChart({
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
                   <TrendingUp className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-semibold text-foreground">Grafik Kurva S Belum Tersedia</h4>
+                <h4 className="text-sm font-semibold text-foreground">Belum Ada Data Progres untuk Kurva S</h4>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Grafik Kurva S hanya digambar berdasarkan data aktual. Silakan input volume progres harian pada item pekerjaan di tabel bawah untuk menampilkan kurva.
+                </p>
               </div>
             ) : isMounted ? (
               <ResponsiveContainer width="100%" height="100%">

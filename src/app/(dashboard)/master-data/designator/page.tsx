@@ -30,6 +30,7 @@ import {
   addDesignatorAction,
   updateDesignatorAction,
   deleteDesignatorAction,
+  batchDeleteDesignatorsAction,
   batchAddDesignatorsAction,
 } from '@/app/actions/masterData';
 
@@ -95,6 +96,8 @@ export default function DesignatorPage() {
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -259,6 +262,30 @@ export default function DesignatorPage() {
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    const idsToDelete = Array.from(selectedIds);
+    const prevData = [...data];
+    setData((prev) => prev.filter((item) => !selectedIds.has(item.id)));
+    try {
+      const res = await batchDeleteDesignatorsAction(idsToDelete);
+      if (res.success) {
+        toast.success(`${idsToDelete.length} Designator berhasil dihapus`);
+        setSelectedIds(new Set());
+        setIsBulkDeleteOpen(false);
+      } else {
+        setData(prevData);
+        toast.error(res.error || 'Gagal menghapus designator terpilih');
+      }
+    } catch (err: any) {
+      setData(prevData);
+      toast.error('Terjadi kesalahan saat menghapus data terpilih');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
 
   // Excel Import / Export / Template
   const handleExport = async () => {
@@ -320,6 +347,16 @@ export default function DesignatorPage() {
           <Button onClick={openCreateDialog} size="sm" className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px]">
             <Plus className="h-4 w-4" /> Tambah Designator
           </Button>
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px] bg-red-600 hover:bg-red-700 text-white animate-in fade-in"
+            >
+              <Trash2 className="h-4 w-4" /> Hapus ({selectedIds.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -383,6 +420,37 @@ export default function DesignatorPage() {
           </Select>
         </div>
       </div>
+
+      {/* Bulk Selection Notification Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg text-[13px] animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+            <span className="font-medium text-red-900 dark:text-red-300">
+              {selectedIds.size} Designator dipilih
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-[28px] text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[28px] text-[12px] gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Hapus {selectedIds.size} Designator Terpilih
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Table Container Single Border */}
       <div className="overflow-hidden rounded-md border bg-card">
@@ -560,6 +628,44 @@ export default function DesignatorPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Dialog Konfirmasi Hapus Massal */}
+      <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] text-destructive flex items-center gap-2 font-semibold">
+              <Trash2 className="w-4 h-4" />
+              Konfirmasi Hapus Massal
+            </DialogTitle>
+            <DialogDescription className="text-[13px] pt-2">
+              Apakah Anda yakin ingin menghapus <span className="font-semibold text-foreground">{selectedIds.size} Designator terpilih</span>?
+              Tindakan ini akan menghapus data secara permanen dari basis data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={() => setIsBulkDeleteOpen(false)}
+              className="h-[32px] text-[13px]"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={handleConfirmBulkDelete}
+              className="h-[32px] text-[13px]"
+            >
+              {isBulkDeleting ? 'Menghapus...' : `Ya, Hapus (${selectedIds.size})`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

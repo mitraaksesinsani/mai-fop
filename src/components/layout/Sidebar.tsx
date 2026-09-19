@@ -124,6 +124,10 @@ const globalNavigation: NavGroup[] = [
             label: 'Alat Kerja',
             href: '/master-data/alat-kerja',
           },
+          {
+            label: 'Mandor (Tenaga Kerja)',
+            href: '/master-data/mandor',
+          },
         ],
       },
     ],

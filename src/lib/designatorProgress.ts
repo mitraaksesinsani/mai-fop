@@ -142,6 +142,7 @@ export interface DailyProgressRecord {
   evidence?: string;
   kendala?: string;
   solusi?: string;
+  cuaca?: string;
 }
 
 
@@ -294,8 +295,12 @@ export function getProgressPercent(item: DesignatorItem): number {
   return Math.min(100, parseFloat(pct.toFixed(1)));
 }
 
-// Helper kalkulasi persen total proyek tertimbang (weighted progress)
-export function calculateOverallProjectProgress(items: DesignatorItem[]): {
+// Helper kalkulasi persen total proyek tertimbang (weighted progress) murni berdasarkan data
+export function calculateOverallProjectProgress(
+  items: DesignatorItem[],
+  startDate?: string,
+  targetDate?: string
+): {
   targetPercent: number;
   actualPercent: number;
   deviation: number;
@@ -310,83 +315,130 @@ export function calculateOverallProjectProgress(items: DesignatorItem[]): {
 
   let totalWeightedActual = 0;
   let totalBobot = 0;
+  let hasAnyInput = false;
 
   items.forEach((item) => {
-    const pct = getProgressPercent(item);
-    totalWeightedActual += (pct * item.bobotPersen) / 100;
+    const target = item.volumeTarget || item.boqVolume || 0;
+    const totalVol = getVolumeTotal(item);
+    if (totalVol > 0) hasAnyInput = true;
+    if (target > 0) {
+      const pct = (totalVol / target) * 100;
+      totalWeightedActual += (pct * item.bobotPersen) / 100;
+    }
     totalBobot += item.bobotPersen;
   });
 
-  const actualPercent = totalBobot > 0 ? (totalWeightedActual / totalBobot) * 100 : 0;
-  const targetPercent = 68.5;
-  const roundedActual = parseFloat(actualPercent.toFixed(2));
-  const deviation = parseFloat((roundedActual - targetPercent).toFixed(2));
+  // Jika belum ada satupun progres volume yang diinputkan
+  if (!hasAnyInput) {
+    return {
+      targetPercent: 0,
+      actualPercent: 0,
+      deviation: 0,
+    };
+  }
+
+  const actualPercent = totalBobot > 0 ? parseFloat(((totalWeightedActual / totalBobot) * 100).toFixed(2)) : 0;
+  
+  // Target proporsional riil berdasarkan waktu kalender yang telah berlalu
+  let targetPercent = 0;
+  if (startDate && targetDate) {
+    const start = new Date(startDate.split('T')[0]).getTime();
+    const end = new Date(targetDate.split('T')[0]).getTime();
+    const now = new Date().getTime();
+    if (end > start) {
+      if (now <= start) {
+        targetPercent = 0;
+      } else if (now >= end) {
+        targetPercent = 100;
+      } else {
+        targetPercent = parseFloat((((now - start) / (end - start)) * 100).toFixed(2));
+      }
+    }
+  }
+
+  const deviation = parseFloat((actualPercent - targetPercent).toFixed(2));
 
   return {
     targetPercent,
-    actualPercent: roundedActual,
+    actualPercent,
     deviation,
   };
 }
 
-// Generator data Kurva S harian (14 hari pemantauan)
+// Generator data Kurva S harian (100% based on data riil)
 export function generateSCurveData(items: DesignatorItem[], progressDates: string[]): SCurvePoint[] {
-  if (!items || items.length === 0 || !progressDates || progressDates.length === 0) {
+  if (!items || items.length === 0) {
     return [];
   }
 
-  const totalBobot = items.reduce((sum, item) => sum + item.bobotPersen, 0);
-  const curvePoints: SCurvePoint[] = [];
-
-  const N = progressDates.length;
-  const todayISO = toISODateString(new Date());
-  const todayLocal = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
-
-  let foundToday = false;
-  for (let i = 0; i < N; i++) {
-    const dateLabel = progressDates[i];
-    const display = formatDisplayDate(dateLabel);
-    
-    // Day Label
-    let dayLabel = 'Day ' + (i + 1);
-    if (dateLabel === todayISO || dateLabel === todayLocal) {
-       dayLabel += ' (Hari Ini)';
-       foundToday = true;
-    } else if (i === N - 1) {
-       dayLabel += ' (TOC)';
-    }
-
-    const isFuture = foundToday && dateLabel !== todayISO && dateLabel !== todayLocal;
-
-    // Target S-Curve Sinusoidal
-    const x = i / (N - 1 || 1);
-    const targetPercent = parseFloat((((Math.sin(x * Math.PI - Math.PI / 2) + 1) / 2) * 100).toFixed(2));
-
-    let actualCumulativeForDay = 0;
-    
-    if (!isFuture || !foundToday) {
-      items.forEach(item => {
-        const target = item.volumeTarget || item.boqVolume || 0;
-        if (target > 0) {
-          let accumulatedVol = 0;
-          for (let j = 0; j <= i; j++) {
-            accumulatedVol += getItemDailyVolume(item, progressDates[j]);
-          }
-          const pct = Math.min(100, (accumulatedVol / target) * 100);
-          actualCumulativeForDay += (pct * item.bobotPersen) / 100;
+  // Kumpulkan semua tanggal yang benar-benar memiliki input volume
+  const recordedDatesSet = new Set<string>();
+  items.forEach((item) => {
+    if (item.dailyVolumes) {
+      Object.entries(item.dailyVolumes).forEach(([dKey, vol]) => {
+        if (Number(vol) > 0) {
+          recordedDatesSet.add(dKey);
         }
       });
     }
+    if (item.dailyRecords) {
+      Object.entries(item.dailyRecords).forEach(([dKey, recs]) => {
+        if (recs && recs.length > 0) {
+          recordedDatesSet.add(dKey);
+        }
+      });
+    }
+  });
 
-    const actualPercent = totalBobot > 0 && (!isFuture || !foundToday)
-      ? parseFloat(((actualCumulativeForDay / totalBobot) * 100).toFixed(2))
-      : null;
+  // JIKA TIDAK ADA DATA SAMA SEKALI, JANGAN TAMPILKAN GRAFIK FIKTIF
+  if (recordedDatesSet.size === 0) {
+    return [];
+  }
+
+  const sortedDates = Array.from(recordedDatesSet).sort();
+  const totalBobot = items.reduce((sum, item) => sum + item.bobotPersen, 0);
+  const totalDays = progressDates.length || sortedDates.length || 1;
+
+  // Ambil rentang tanggal dari tanggal mulai sampai tanggal terakhir yang memiliki input data
+  const lastRecordedDate = sortedDates[sortedDates.length - 1];
+  let activeDates = progressDates.filter((d) => d <= lastRecordedDate);
+  if (activeDates.length === 0) {
+    activeDates = sortedDates;
+  }
+
+  const curvePoints: SCurvePoint[] = [];
+
+  for (let i = 0; i < activeDates.length; i++) {
+    const dateLabel = activeDates[i];
+    const display = formatDisplayDate(dateLabel);
+    const dayLabel = `Day ${i + 1} (${display.fullDate || dateLabel})`;
+
+    let accumulatedWeightedActual = 0;
+
+    items.forEach((item) => {
+      const target = item.volumeTarget || item.boqVolume || 0;
+      if (target > 0) {
+        let accumulatedVol = 0;
+        for (let j = 0; j <= i; j++) {
+          accumulatedVol += getItemDailyVolume(item, activeDates[j]);
+        }
+        const pct = Math.min(100, (accumulatedVol / target) * 100);
+        accumulatedWeightedActual += (pct * item.bobotPersen) / 100;
+      }
+    });
+
+    const actualPercent = totalBobot > 0
+      ? parseFloat(((accumulatedWeightedActual / totalBobot) * 100).toFixed(2))
+      : 0;
+
+    // Target proporsional riil hari tersebut
+    const targetPercent = parseFloat((((i + 1) / totalDays) * 100).toFixed(2));
 
     curvePoints.push({
       dayLabel,
       date: display.fullDate || dateLabel,
-      targetPercent: i === N - 1 ? 100 : targetPercent,
-      actualPercent: actualPercent,
+      targetPercent,
+      actualPercent,
     });
   }
 

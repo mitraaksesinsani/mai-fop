@@ -7,6 +7,7 @@ export async function getProjects() {
   try {
     let dbProjects: any[] = [];
 
+    let isSupabaseLoaded = false;
     if (isSupabaseConfigured && supabase) {
       try {
         // Try fetching with requirements, fallback to simple select if relation is missing
@@ -21,19 +22,21 @@ export async function getProjects() {
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!simpleError && simpleData && simpleData.length > 0) {
+          if (!simpleError && simpleData) {
             dbProjects = simpleData;
+            isSupabaseLoaded = true;
           }
-        } else if (joinedData && joinedData.length > 0) {
+        } else if (joinedData) {
           dbProjects = joinedData;
+          isSupabaseLoaded = true;
         }
       } catch (supaErr) {
         console.warn('Supabase getProjects notice:', supaErr);
       }
     }
 
-    // Jika Supabase tidak ada data atau belum dikonfigurasi, baca dari local serverDb (data/db.json)
-    if (dbProjects.length === 0) {
+    // Jika Supabase gagal dikueri atau belum dikonfigurasi, baru baca dari local serverDb (data/db.json)
+    if (!isSupabaseLoaded && dbProjects.length === 0) {
       try {
         const db = await readServerDb();
         if (Array.isArray(db.projects) && db.projects.length > 0) {
@@ -61,39 +64,42 @@ export async function getProjects() {
             dailyReports: p.dailyReports || {},
             evidences: p.evidences || [],
             issues: p.issues || [],
+            otdrTests: p.otdrTests || [],
+            defects: p.defects || [],
+            bauts: p.bauts || [],
+            asBuiltDocs: p.asBuiltDocs || [],
+            assets: p.assets || [],
+            profitability: p.profitability || undefined,
           }));
           return { success: true, data: mapped };
         }
       } catch (dbErr) {
-        console.warn('serverDb readProjects notice:', dbErr);
+        console.warn('serverDb getProjects notice:', dbErr);
       }
     }
 
-    // Baca data lokal untuk fallback pengayaan survey & permits jika di Supabase masih kosong
-    let localDbMap: Record<string, any> = {};
+    // Ambil fallback data/db.json hanya untuk melengkapi jika ada properti yang tidak ada di Supabase
+    let localProjects: any[] = [];
     try {
-      const localDb = await readServerDb();
-      if (Array.isArray(localDb.projects)) {
-        for (const lp of localDb.projects) {
-          if (lp.id) localDbMap[lp.id] = lp;
-          if (lp.projectCode) localDbMap[lp.projectCode] = lp;
-        }
+      const db = await readServerDb();
+      if (Array.isArray(db.projects)) {
+        localProjects = db.projects;
       }
-    } catch (e) {
-      // ignore
+    } catch {
+      // Abaikan jika db.json tidak ada
     }
 
     // Map database structure to Frontend interface
     const projects = (dbProjects || []).map((p: any) => {
-      const localP = localDbMap[p.id] || localDbMap[p.project_code] || {};
+      const localP = localProjects.find((lp: any) => lp.id === p.id || lp.projectCode === p.project_code) || {};
       return {
         id: p.id,
         name: p.project_name || localP.projectName || localP.name || '',
         customer: p.customer || localP.customer || '',
         type: p.project_type || localP.projectType || localP.type || '',
         location: p.region || localP.region || localP.location || '',
-        contractNo: p.project_code || p.projectCode || localP.projectCode || localP.contractNo || '',
-        projectCode: p.project_code || p.projectCode || localP.projectCode || localP.contractNo || '',
+        contractNo: p.project_code || localP.projectCode || localP.contractNo || '',
+        projectCode: p.project_code || localP.projectCode || localP.contractNo || '',
         startDate: p.start_date ? p.start_date.split('T')[0] : (localP.startDate ? localP.startDate.split('T')[0] : undefined),
         targetDate: p.end_date ? p.end_date.split('T')[0] : (localP.endDate ? localP.endDate.split('T')[0] : (localP.targetDate ? localP.targetDate.split('T')[0] : undefined)),
         manager: p.pic || localP.pic || localP.manager || '',
@@ -119,43 +125,43 @@ export async function getProjects() {
         },
 
         // DRM & Designator Items
-        designatorItems: (Array.isArray(p.designator_items) && p.designator_items.length > 0)
+        designatorItems: Array.isArray(p.designator_items)
           ? p.designator_items
-          : (Array.isArray(p.designatorItems) && p.designatorItems.length > 0
+          : (Array.isArray(p.designatorItems)
               ? p.designatorItems
               : (localP.designatorItems || [])),
         surveyRoute: p.survey_route || p.surveyRoute || localP.surveyRoute || undefined,
         surveyValidation: p.survey_validation || p.surveyValidation || localP.surveyValidation || undefined,
         surveyKml: p.survey_kml || p.surveyKml || localP.surveyKml || undefined,
-        permits: (Array.isArray(p.permits) && p.permits.length > 0)
+        permits: Array.isArray(p.permits)
           ? p.permits
-          : (Array.isArray(localP.permits) && localP.permits.length > 0 ? localP.permits : []),
+          : (Array.isArray(localP.permits) ? localP.permits : []),
         dailyReports: p.daily_reports || p.dailyReports || localP.dailyReports || {},
-        evidences: (Array.isArray(p.evidences) && p.evidences.length > 0)
+        evidences: Array.isArray(p.evidences)
           ? p.evidences
-          : (Array.isArray(localP.evidences) && localP.evidences.length > 0 ? localP.evidences : []),
-        issues: (Array.isArray(p.issues) && p.issues.length > 0)
+          : (Array.isArray(localP.evidences) ? localP.evidences : []),
+        issues: Array.isArray(p.issues)
           ? p.issues
-          : (Array.isArray(localP.issues) && localP.issues.length > 0 ? localP.issues : []),
-        otdrTests: (Array.isArray(p.otdr_tests) && p.otdr_tests.length > 0)
+          : (Array.isArray(localP.issues) ? localP.issues : []),
+        otdrTests: Array.isArray(p.otdr_tests)
           ? p.otdr_tests
-          : (Array.isArray(p.otdrTests) && p.otdrTests.length > 0
+          : (Array.isArray(p.otdrTests)
               ? p.otdrTests
-              : (Array.isArray(localP.otdrTests) && localP.otdrTests.length > 0 ? localP.otdrTests : [])),
-        defects: (Array.isArray(p.defects) && p.defects.length > 0)
+              : (Array.isArray(localP.otdrTests) ? localP.otdrTests : [])),
+        defects: Array.isArray(p.defects)
           ? p.defects
-          : (Array.isArray(localP.defects) && localP.defects.length > 0 ? localP.defects : []),
-        bauts: (Array.isArray(p.bauts) && p.bauts.length > 0)
+          : (Array.isArray(localP.defects) ? localP.defects : []),
+        bauts: Array.isArray(p.bauts)
           ? p.bauts
-          : (Array.isArray(localP.bauts) && localP.bauts.length > 0 ? localP.bauts : []),
-        asBuiltDocs: (Array.isArray(p.as_built_docs) && p.as_built_docs.length > 0)
+          : (Array.isArray(localP.bauts) ? localP.bauts : []),
+        asBuiltDocs: Array.isArray(p.as_built_docs)
           ? p.as_built_docs
-          : (Array.isArray(p.asBuiltDocs) && p.asBuiltDocs.length > 0
+          : (Array.isArray(p.asBuiltDocs)
               ? p.asBuiltDocs
-              : (Array.isArray(localP.asBuiltDocs) && localP.asBuiltDocs.length > 0 ? localP.asBuiltDocs : [])),
-        assets: (Array.isArray(p.assets) && p.assets.length > 0)
+              : (Array.isArray(localP.asBuiltDocs) ? localP.asBuiltDocs : [])),
+        assets: Array.isArray(p.assets)
           ? p.assets
-          : (Array.isArray(localP.assets) && localP.assets.length > 0 ? localP.assets : []),
+          : (Array.isArray(localP.assets) ? localP.assets : []),
         profitability: p.profitability || localP.profitability || undefined,
       };
     });
@@ -439,6 +445,21 @@ export async function getPermitsAction(projectId: string): Promise<{ success: bo
             updatedAt: item.updated_at || item.updatedAt,
           }));
           return { success: true, data: permits };
+        }
+
+        // Cek kolom permits pada tabel projects di Supabase
+        const { data: projData, error: projErr } = await supabase
+          .from('projects')
+          .select('permits')
+          .eq('id', projectId)
+          .single();
+
+        if (!projErr && projData && Array.isArray(projData.permits)) {
+          return { success: true, data: projData.permits };
+        }
+
+        if (!supaErr && Array.isArray(dbPermits)) {
+          return { success: true, data: [] };
         }
       } catch (err) {
         console.warn('Supabase project_permits notice:', err);
@@ -851,10 +872,42 @@ export async function saveDailyReportNoteAction(
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let updatedNote: any = null;
-    let allReports: Record<string, any> = {};
+    let updatedNote: any = {
+      ...noteData,
+      updatedAt: nowIso,
+    };
 
-    // 1. Simpan ke local server database (data/db.json)
+    // 1. Simpan ke Supabase jika aktif (Single Source of Truth)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('daily_reports')
+          .eq('id', projectId)
+          .single();
+
+        let currentReports: Record<string, any> = (supaProject?.daily_reports && typeof supaProject.daily_reports === 'object') ? supaProject.daily_reports : {};
+        const prev = currentReports[date] || {};
+        updatedNote = {
+          ...prev,
+          ...noteData,
+          updatedAt: nowIso,
+        };
+        currentReports[date] = updatedNote;
+
+        await supabase
+          .from('projects')
+          .update({
+            daily_reports: currentReports,
+            updated_at: nowIso,
+          })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveDailyReportNote notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan juga ke local server database (data/db.json) sebagai offline sync
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -867,13 +920,11 @@ export async function saveDailyReportNoteAction(
             db.projects[projectIndex].dailyReports = {};
           }
           const prev = db.projects[projectIndex].dailyReports[date] || {};
-          updatedNote = {
+          db.projects[projectIndex].dailyReports[date] = {
             ...prev,
             ...noteData,
             updatedAt: nowIso,
           };
-          db.projects[projectIndex].dailyReports[date] = updatedNote;
-          allReports = db.projects[projectIndex].dailyReports;
           await writeServerDb(db);
         }
       }
@@ -881,24 +932,9 @@ export async function saveDailyReportNoteAction(
       console.warn('serverDb saveDailyReportNote notice:', dbErr);
     }
 
-    // 2. Simpan juga ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({
-            daily_reports: allReports,
-            updated_at: nowIso,
-          })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveDailyReportNote notice:', supaErr);
-      }
-    }
-
     return {
       success: true,
-      data: updatedNote || { ...noteData, updatedAt: nowIso },
+      data: updatedNote,
     };
   } catch (error: any) {
     console.error('Failed to save daily report note action:', error);
@@ -919,7 +955,7 @@ export async function getDailyReportsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && supaProject.daily_reports && Object.keys(supaProject.daily_reports).length > 0) {
+        if (!supaErr && supaProject && supaProject.daily_reports) {
           return {
             success: true,
             data: supaProject.daily_reports,
@@ -930,7 +966,7 @@ export async function getDailyReportsAction(
       }
     }
 
-    // 2. Fallback baca dari serverDb (data/db.json)
+    // 2. Fallback baca dari serverDb (data/db.json) jika offline
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -962,7 +998,22 @@ export async function saveDesignatorProgressAction(
   try {
     const nowIso = new Date().toISOString();
 
-    // 1. Simpan ke local server database (data/db.json)
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('projects')
+          .update({
+            designator_items: items,
+            updated_at: nowIso,
+          })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveDesignatorProgress notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan juga ke local server database (data/db.json)
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -978,21 +1029,6 @@ export async function saveDesignatorProgressAction(
       }
     } catch (dbErr) {
       console.warn('serverDb saveDesignatorProgress notice:', dbErr);
-    }
-
-    // 2. Simpan juga ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({
-            designator_items: items,
-            updated_at: nowIso,
-          })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveDesignatorProgress notice:', supaErr);
-      }
     }
 
     return { success: true, data: items };
@@ -1015,7 +1051,7 @@ export async function getDesignatorProgressAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.designator_items) && supaProject.designator_items.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.designator_items)) {
           return {
             success: true,
             data: supaProject.designator_items,
@@ -1033,7 +1069,7 @@ export async function getDesignatorProgressAction(
         const proj = db.projects.find(
           (p: any) => p.id === projectId || p.projectCode === projectId
         );
-        if (proj && Array.isArray(proj.designatorItems) && proj.designatorItems.length > 0) {
+        if (proj && Array.isArray(proj.designatorItems)) {
           return {
             success: true,
             data: proj.designatorItems,
@@ -1066,7 +1102,7 @@ export async function getProjectEvidencesAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.evidences) && supaProject.evidences.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.evidences)) {
           return { success: true, data: supaProject.evidences };
         }
       } catch (supaErr) {
@@ -1107,7 +1143,34 @@ export async function saveProjectEvidenceAction(
 
     let allEvidences: any[] = [];
 
-    // 1. Simpan ke local server database (data/db.json)
+    // 1. Simpan ke Supabase jika aktif (Single Source of Truth)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('evidences')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.evidences) ? supaProject.evidences : [];
+        const existingIndex = list.findIndex((e: any) => e.id === evidenceItem.id);
+        if (existingIndex !== -1) {
+          list[existingIndex] = evidenceItem;
+        } else {
+          list.unshift(evidenceItem);
+        }
+        allEvidences = list;
+
+        await supabase
+          .from('projects')
+          .update({ evidences: allEvidences, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectEvidence notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan juga ke local server database (data/db.json) sebagai sync offline
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1116,32 +1179,20 @@ export async function saveProjectEvidenceAction(
           if (!Array.isArray(db.projects[idx].evidences)) {
             db.projects[idx].evidences = [];
           }
-
           const existingIndex = db.projects[idx].evidences.findIndex((e: any) => e.id === evidenceItem.id);
           if (existingIndex !== -1) {
             db.projects[idx].evidences[existingIndex] = evidenceItem;
           } else {
             db.projects[idx].evidences.unshift(evidenceItem);
           }
-
-          allEvidences = db.projects[idx].evidences;
+          if (allEvidences.length === 0) {
+            allEvidences = db.projects[idx].evidences;
+          }
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectEvidence notice:', dbErr);
-    }
-
-    // 2. Simpan juga ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ evidences: allEvidences, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectEvidence notice:', supaErr);
-      }
     }
 
     return { success: true, data: evidenceItem };
@@ -1157,7 +1208,26 @@ export async function deleteProjectEvidenceAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allEvidences: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('evidences')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.evidences)) {
+          const filtered = supaProject.evidences.filter((e: any) => e.id !== evidenceId);
+          await supabase
+            .from('projects')
+            .update({ evidences: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectEvidence notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1165,23 +1235,11 @@ export async function deleteProjectEvidenceAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].evidences)) {
           db.projects[idx].evidences = db.projects[idx].evidences.filter((e: any) => e.id !== evidenceId);
-          allEvidences = db.projects[idx].evidences;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectEvidence notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ evidences: allEvidences, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectEvidence notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1206,7 +1264,7 @@ export async function getProjectIssuesAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.issues) && supaProject.issues.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.issues)) {
           return { success: true, data: supaProject.issues };
         }
       } catch (supaErr) {
@@ -1248,7 +1306,34 @@ export async function saveProjectIssueAction(
 
     let allIssues: any[] = [];
 
-    // 1. Simpan ke local server database (data/db.json)
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('issues')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.issues) ? supaProject.issues : [];
+        const existingIndex = list.findIndex((i: any) => i.id === issueItem.id);
+        if (existingIndex !== -1) {
+          list[existingIndex] = issueItem;
+        } else {
+          list.unshift(issueItem);
+        }
+        allIssues = list;
+
+        await supabase
+          .from('projects')
+          .update({ issues: allIssues, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectIssue notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan juga ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1257,32 +1342,17 @@ export async function saveProjectIssueAction(
           if (!Array.isArray(db.projects[idx].issues)) {
             db.projects[idx].issues = [];
           }
-
           const existingIndex = db.projects[idx].issues.findIndex((i: any) => i.id === issueItem.id);
           if (existingIndex !== -1) {
             db.projects[idx].issues[existingIndex] = issueItem;
           } else {
             db.projects[idx].issues.unshift(issueItem);
           }
-
-          allIssues = db.projects[idx].issues;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectIssue notice:', dbErr);
-    }
-
-    // 2. Simpan juga ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ issues: allIssues, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectIssue notice:', supaErr);
-      }
     }
 
     return { success: true, data: issueItem };
@@ -1298,7 +1368,26 @@ export async function deleteProjectIssueAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allIssues: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('issues')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.issues)) {
+          const filtered = supaProject.issues.filter((i: any) => i.id !== issueId);
+          await supabase
+            .from('projects')
+            .update({ issues: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectIssue notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1306,23 +1395,11 @@ export async function deleteProjectIssueAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].issues)) {
           db.projects[idx].issues = db.projects[idx].issues.filter((i: any) => i.id !== issueId);
-          allIssues = db.projects[idx].issues;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectIssue notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ issues: allIssues, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectIssue notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1347,7 +1424,7 @@ export async function getProjectOtdrTestsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.otdr_tests) && supaProject.otdr_tests.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.otdr_tests)) {
           return { success: true, data: supaProject.otdr_tests };
         }
       } catch (supaErr) {
@@ -1397,7 +1474,34 @@ export async function saveProjectOtdrTestAction(
 
     let allTests: any[] = [];
 
-    // 1. Simpan ke local db.json
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('otdr_tests')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.otdr_tests) ? supaProject.otdr_tests : [];
+        const existingIdx = list.findIndex((t: any) => t.id === testItem.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = testItem;
+        } else {
+          list.unshift(testItem);
+        }
+        allTests = list;
+
+        await supabase
+          .from('projects')
+          .update({ otdr_tests: allTests, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectOtdrTest notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1412,25 +1516,11 @@ export async function saveProjectOtdrTestAction(
           } else {
             db.projects[idx].otdrTests.unshift(testItem);
           }
-
-          allTests = db.projects[idx].otdrTests;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectOtdrTest notice:', dbErr);
-    }
-
-    // 2. Simpan juga ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ otdr_tests: allTests, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectOtdrTest notice:', supaErr);
-      }
     }
 
     return { success: true, data: testItem };
@@ -1446,7 +1536,26 @@ export async function deleteProjectOtdrTestAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allTests: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('otdr_tests')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.otdr_tests)) {
+          const filtered = supaProject.otdr_tests.filter((t: any) => t.id !== testId);
+          await supabase
+            .from('projects')
+            .update({ otdr_tests: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectOtdrTest notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1454,23 +1563,11 @@ export async function deleteProjectOtdrTestAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].otdrTests)) {
           db.projects[idx].otdrTests = db.projects[idx].otdrTests.filter((t: any) => t.id !== testId);
-          allTests = db.projects[idx].otdrTests;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectOtdrTest notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ otdr_tests: allTests, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectOtdrTest notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1495,7 +1592,7 @@ export async function getProjectDefectsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.defects) && supaProject.defects.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.defects)) {
           return { success: true, data: supaProject.defects };
         }
       } catch (supaErr) {
@@ -1541,7 +1638,34 @@ export async function saveProjectDefectAction(
 
     let allDefects: any[] = [];
 
-    // 1. Simpan ke local db.json
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('defects')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.defects) ? supaProject.defects : [];
+        const existingIdx = list.findIndex((d: any) => d.id === defectItem.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = defectItem;
+        } else {
+          list.unshift(defectItem);
+        }
+        allDefects = list;
+
+        await supabase
+          .from('projects')
+          .update({ defects: allDefects, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectDefect notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1556,25 +1680,11 @@ export async function saveProjectDefectAction(
           } else {
             db.projects[idx].defects.unshift(defectItem);
           }
-
-          allDefects = db.projects[idx].defects;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectDefect notice:', dbErr);
-    }
-
-    // 2. Simpan ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ defects: allDefects, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectDefect notice:', supaErr);
-      }
     }
 
     return { success: true, data: defectItem };
@@ -1590,7 +1700,26 @@ export async function deleteProjectDefectAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allDefects: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('defects')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.defects)) {
+          const filtered = supaProject.defects.filter((d: any) => d.id !== defectId);
+          await supabase
+            .from('projects')
+            .update({ defects: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectDefect notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1598,23 +1727,11 @@ export async function deleteProjectDefectAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].defects)) {
           db.projects[idx].defects = db.projects[idx].defects.filter((d: any) => d.id !== defectId);
-          allDefects = db.projects[idx].defects;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectDefect notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ defects: allDefects, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectDefect notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1639,7 +1756,7 @@ export async function getProjectBautsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.bauts) && supaProject.bauts.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.bauts)) {
           return { success: true, data: supaProject.bauts };
         }
       } catch (supaErr) {
@@ -1687,7 +1804,34 @@ export async function saveProjectBautAction(
 
     let allBauts: any[] = [];
 
-    // 1. Simpan ke local db.json
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('bauts')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.bauts) ? supaProject.bauts : [];
+        const existingIdx = list.findIndex((b: any) => b.id === bautItem.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = bautItem;
+        } else {
+          list.unshift(bautItem);
+        }
+        allBauts = list;
+
+        await supabase
+          .from('projects')
+          .update({ bauts: allBauts, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectBaut notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1702,25 +1846,11 @@ export async function saveProjectBautAction(
           } else {
             db.projects[idx].bauts.unshift(bautItem);
           }
-
-          allBauts = db.projects[idx].bauts;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectBaut notice:', dbErr);
-    }
-
-    // 2. Simpan ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ bauts: allBauts, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectBaut notice:', supaErr);
-      }
     }
 
     return { success: true, data: bautItem };
@@ -1736,7 +1866,26 @@ export async function deleteProjectBautAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allBauts: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('bauts')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.bauts)) {
+          const filtered = supaProject.bauts.filter((b: any) => b.id !== bautId);
+          await supabase
+            .from('projects')
+            .update({ bauts: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectBaut notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1744,23 +1893,11 @@ export async function deleteProjectBautAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].bauts)) {
           db.projects[idx].bauts = db.projects[idx].bauts.filter((b: any) => b.id !== bautId);
-          allBauts = db.projects[idx].bauts;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectBaut notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ bauts: allBauts, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectBaut notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1785,7 +1922,7 @@ export async function getProjectAsBuiltDocsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.as_built_docs) && supaProject.as_built_docs.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.as_built_docs)) {
           return { success: true, data: supaProject.as_built_docs };
         }
       } catch (supaErr) {
@@ -1829,7 +1966,34 @@ export async function saveProjectAsBuiltDocAction(
 
     let allDocs: any[] = [];
 
-    // 1. Simpan ke local db.json
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('as_built_docs')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.as_built_docs) ? supaProject.as_built_docs : [];
+        const existingIdx = list.findIndex((d: any) => d.id === docItem.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = docItem;
+        } else {
+          list.unshift(docItem);
+        }
+        allDocs = list;
+
+        await supabase
+          .from('projects')
+          .update({ as_built_docs: allDocs, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectAsBuiltDoc notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1844,25 +2008,11 @@ export async function saveProjectAsBuiltDocAction(
           } else {
             db.projects[idx].asBuiltDocs.unshift(docItem);
           }
-
-          allDocs = db.projects[idx].asBuiltDocs;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectAsBuiltDoc notice:', dbErr);
-    }
-
-    // 2. Simpan ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ as_built_docs: allDocs, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectAsBuiltDoc notice:', supaErr);
-      }
     }
 
     return { success: true, data: docItem };
@@ -1878,7 +2028,26 @@ export async function deleteProjectAsBuiltDocAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allDocs: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('as_built_docs')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.as_built_docs)) {
+          const filtered = supaProject.as_built_docs.filter((d: any) => d.id !== docId);
+          await supabase
+            .from('projects')
+            .update({ as_built_docs: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectAsBuiltDoc notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -1886,23 +2055,11 @@ export async function deleteProjectAsBuiltDocAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].asBuiltDocs)) {
           db.projects[idx].asBuiltDocs = db.projects[idx].asBuiltDocs.filter((d: any) => d.id !== docId);
-          allDocs = db.projects[idx].asBuiltDocs;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectAsBuiltDoc notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ as_built_docs: allDocs, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectAsBuiltDoc notice:', supaErr);
-      }
     }
 
     return { success: true };
@@ -1927,7 +2084,7 @@ export async function getProjectAssetsAction(
           .eq('id', projectId)
           .single();
 
-        if (!supaErr && supaProject && Array.isArray(supaProject.assets) && supaProject.assets.length > 0) {
+        if (!supaErr && supaProject && Array.isArray(supaProject.assets)) {
           return { success: true, data: supaProject.assets };
         }
       } catch (supaErr) {
@@ -1972,7 +2129,34 @@ export async function saveProjectAssetAction(
 
     let allAssets: any[] = [];
 
-    // 1. Simpan ke local db.json
+    // 1. Simpan ke Supabase jika aktif
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('assets')
+          .eq('id', projectId)
+          .single();
+
+        let list: any[] = Array.isArray(supaProject?.assets) ? supaProject.assets : [];
+        const existingIdx = list.findIndex((a: any) => a.id === assetItem.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = assetItem;
+        } else {
+          list.unshift(assetItem);
+        }
+        allAssets = list;
+
+        await supabase
+          .from('projects')
+          .update({ assets: allAssets, updated_at: nowIso })
+          .eq('id', projectId);
+      } catch (supaErr) {
+        console.warn('Supabase saveProjectAsset notice:', supaErr);
+      }
+    }
+
+    // 2. Simpan ke local db.json
     try {
       const db = await readServerDb();
       if (Array.isArray(db.projects)) {
@@ -1987,25 +2171,11 @@ export async function saveProjectAssetAction(
           } else {
             db.projects[idx].assets.unshift(assetItem);
           }
-
-          allAssets = db.projects[idx].assets;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb saveProjectAsset notice:', dbErr);
-    }
-
-    // 2. Simpan ke Supabase jika aktif
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ assets: allAssets, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase saveProjectAsset notice:', supaErr);
-      }
     }
 
     return { success: true, data: assetItem };
@@ -2021,7 +2191,26 @@ export async function deleteProjectAssetAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowIso = new Date().toISOString();
-    let allAssets: any[] = [];
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaProject } = await supabase
+          .from('projects')
+          .select('assets')
+          .eq('id', projectId)
+          .single();
+
+        if (Array.isArray(supaProject?.assets)) {
+          const filtered = supaProject.assets.filter((a: any) => a.id !== assetId);
+          await supabase
+            .from('projects')
+            .update({ assets: filtered, updated_at: nowIso })
+            .eq('id', projectId);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase deleteProjectAsset notice:', supaErr);
+      }
+    }
 
     try {
       const db = await readServerDb();
@@ -2029,23 +2218,11 @@ export async function deleteProjectAssetAction(
         const idx = db.projects.findIndex((p: any) => p.id === projectId || p.projectCode === projectId);
         if (idx !== -1 && Array.isArray(db.projects[idx].assets)) {
           db.projects[idx].assets = db.projects[idx].assets.filter((a: any) => a.id !== assetId);
-          allAssets = db.projects[idx].assets;
           await writeServerDb(db);
         }
       }
     } catch (dbErr) {
       console.warn('serverDb deleteProjectAsset notice:', dbErr);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('projects')
-          .update({ assets: allAssets, updated_at: nowIso })
-          .eq('id', projectId);
-      } catch (supaErr) {
-        console.warn('Supabase deleteProjectAsset notice:', supaErr);
-      }
     }
 
     return { success: true };

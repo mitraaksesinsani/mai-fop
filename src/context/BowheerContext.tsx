@@ -6,6 +6,7 @@ import {
   addBowheerAction,
   updateBowheerAction,
   deleteBowheerAction,
+  batchDeleteBowheersAction,
 } from '@/app/actions/masterData';
 
 export type BowheerCategory =
@@ -145,6 +146,7 @@ interface BowheerContextType {
   addBowheer: (data: Omit<Bowheer, 'id' | 'createdAt'>) => Bowheer;
   updateBowheer: (id: string, data: Partial<Omit<Bowheer, 'id' | 'createdAt'>>) => void;
   deleteBowheer: (id: string) => void;
+  deleteBowheers: (ids: string[]) => Promise<void>;
   getBowheerById: (id: string) => Bowheer | undefined;
   getBowheerByName: (name: string) => Bowheer | undefined;
   refreshBowheers: () => Promise<void>;
@@ -268,6 +270,17 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
     deleteBowheerAction(id);
   };
 
+  const deleteBowheers = async (ids: string[]) => {
+    const idSet = new Set(ids);
+    setBowheers((prev) => {
+      const next = prev.filter((item) => !idSet.has(item.id));
+      saveToStorage(next);
+      return next;
+    });
+
+    await batchDeleteBowheersAction(ids);
+  };
+
   const getBowheerById = (id: string) => {
     return bowheers.find((b) => b.id === id);
   };
@@ -292,6 +305,7 @@ export function BowheerProvider({ children }: { children: ReactNode }) {
         addBowheer,
         updateBowheer,
         deleteBowheer,
+        deleteBowheers,
         getBowheerById,
         getBowheerByName,
         refreshBowheers,

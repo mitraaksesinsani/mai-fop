@@ -658,6 +658,7 @@ export default function ProjectDetailPage() {
     }
     setIsSavingPermit(true);
     try {
+      const existingPermit = permitsList.find((p) => p.id === editingPermitId);
       const permitItem = {
         id: editingPermitId || `pmt-${Date.now()}`,
         siteId: permitFormData.siteId.trim(),
@@ -669,7 +670,7 @@ export default function ProjectDetailPage() {
         cost: permitFormData.cost ? Number(permitFormData.cost) : 0,
         notes: permitFormData.notes.trim(),
         checklist: { [permitFormData.category]: permitFormData.checklistPU },
-        ...(editingPermitId ? {} : { createdAt: new Date().toISOString() }),
+        createdAt: existingPermit?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
@@ -1069,9 +1070,9 @@ export default function ProjectDetailPage() {
 
     getProjectOtdrTestsAction(targetId).then((res) => {
       if (isMounted) {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setOtdrTestsList(res.data);
-        } else if (Array.isArray(project?.otdrTests) && project.otdrTests.length > 0) {
+        } else if (Array.isArray(project?.otdrTests)) {
           setOtdrTestsList(project.otdrTests);
         }
         setIsLoadingOtdr(false);
@@ -1080,9 +1081,9 @@ export default function ProjectDetailPage() {
 
     getProjectDefectsAction(targetId).then((res) => {
       if (isMounted) {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setDefectsList(res.data);
-        } else if (Array.isArray(project?.defects) && project.defects.length > 0) {
+        } else if (Array.isArray(project?.defects)) {
           setDefectsList(project.defects);
         }
         setIsLoadingDefects(false);
@@ -1091,9 +1092,9 @@ export default function ProjectDetailPage() {
 
     getProjectBautsAction(targetId).then((res) => {
       if (isMounted) {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setBautsList(res.data);
-        } else if (Array.isArray(project?.bauts) && project.bauts.length > 0) {
+        } else if (Array.isArray(project?.bauts)) {
           setBautsList(project.bauts);
         }
         setIsLoadingBauts(false);
@@ -1511,9 +1512,9 @@ export default function ProjectDetailPage() {
 
     getProjectAsBuiltDocsAction(targetId).then((res) => {
       if (isMounted) {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setAsBuiltDocsList(res.data);
-        } else if (Array.isArray(project?.asBuiltDocs) && project.asBuiltDocs.length > 0) {
+        } else if (Array.isArray(project?.asBuiltDocs)) {
           setAsBuiltDocsList(project.asBuiltDocs);
         }
         setIsLoadingDocs(false);
@@ -1522,9 +1523,9 @@ export default function ProjectDetailPage() {
 
     getProjectAssetsAction(targetId).then((res) => {
       if (isMounted) {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setAssetsList(res.data);
-        } else if (Array.isArray(project?.assets) && project.assets.length > 0) {
+        } else if (Array.isArray(project?.assets)) {
           setAssetsList(project.assets);
         }
         setIsLoadingAssets(false);
@@ -1538,25 +1539,16 @@ export default function ProjectDetailPage() {
         } else if (project?.profitability) {
           setProfitabilityData(project.profitability);
         } else {
-          const rev = project?.commercial?.revenue || 1500000000;
-          const capex = project?.commercial?.capex || 1050000000;
-          const opex = project?.commercial?.opex || 120000000;
+          const rev = project?.commercial?.revenue || 0;
+          const capex = project?.commercial?.capex || 0;
+          const opex = project?.commercial?.opex || 0;
           setProfitabilityData({
             contractValue: rev,
             actualCapex: capex,
             actualOpex: opex,
-            rabBudget: capex + opex + 30000000,
-            notes: 'Proyek diselesaikan dengan margin positif sesuai target komersial.',
-            rootCauses: [
-              {
-                id: 'rc-1',
-                title: '1. Penyesuaian Ruas Galian Manual Handhole (+Rp 15.000.000)',
-                description: 'Penambahan sewa alat bantu pemecah batu pada kedalaman 1.1 meter.',
-                impactAmount: 15000000,
-                impactLevel: 'Moderate',
-              },
-            ],
-            updatedAt: new Date().toISOString(),
+            rabBudget: capex + opex,
+            notes: '',
+            rootCauses: [],
           });
         }
         setIsLoadingProfitability(false);
@@ -1892,7 +1884,7 @@ export default function ProjectDetailPage() {
     getDesignatorProgressAction(targetId)
       .then((res) => {
         if (!isMounted) return;
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setDesignatorItems(res.data);
           try {
             localStorage.setItem(`proper_project_designators_${targetId}`, JSON.stringify(res.data));
@@ -1900,29 +1892,10 @@ export default function ProjectDetailPage() {
           return;
         }
 
-        // 2. Jika di database belum ada, cek project context atau localStorage sebagai fallback
-        if (Array.isArray(project?.designatorItems) && project.designatorItems.length > 0) {
+        // 2. Jika Server Action tidak mengembalikan array, cek project context
+        if (Array.isArray(project?.designatorItems)) {
           setDesignatorItems(project.designatorItems);
-          saveDesignatorProgressAction(targetId, project.designatorItems).catch(() => {});
           return;
-        }
-
-        let initialItems = DEFAULT_DESIGNATOR_ITEMS;
-        try {
-          const saved = localStorage.getItem(`proper_project_designators_${targetId}`);
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              initialItems = parsed;
-            }
-          }
-        } catch {}
-
-        setDesignatorItems(initialItems);
-        // Simpan inisialisasi ke database server agar permanen
-        saveDesignatorProgressAction(targetId, initialItems).catch(() => {});
-        if (project) {
-          updateProject(project.id, { designatorItems: initialItems });
         }
       })
       .catch((err) => {
@@ -1963,7 +1936,7 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const progressMetrics = calculateOverallProjectProgress(designatorItems);
+  const progressMetrics = calculateOverallProjectProgress(designatorItems, project?.startDate, project?.targetDate);
   const progressDates = useMemo(() => {
     return generateProgressDates(project?.startDate, project?.targetDate);
   }, [project?.startDate, project?.targetDate]);
@@ -1977,15 +1950,6 @@ export default function ProjectDetailPage() {
 
   // State Manajemen Info Lapangan Harian (Real Database)
   const [dailyReportsMap, setDailyReportsMap] = useState<Record<string, any>>(project?.dailyReports || {});
-  const [isEditDailyInfoOpen, setIsEditDailyInfoOpen] = useState(false);
-  const [isSavingDailyInfo, setIsSavingDailyInfo] = useState(false);
-  const [dailyInfoFormData, setDailyInfoFormData] = useState({
-    tenagaKerja: '',
-    alatBerat: '',
-    cuaca: 'CERAH',
-    kendala: '',
-    solusi: '',
-  });
 
   // Muat data Laporan Harian (Daily Reports) dari database server
   useEffect(() => {
@@ -2039,7 +2003,7 @@ export default function ProjectDetailPage() {
     return diffDays >= 0 ? `${diffDays} Hari` : `${Math.abs(diffDays)} Hari (Terlewat)`;
   }, [project?.targetDate, selectedReportDate]);
 
-  // Rekapitulasi Data Tabel Berdasarkan Tanggal yang Dipilih
+  // Rekapitulasi Data Tabel Berdasarkan Tanggal yang Dipilih (Sinkron dengan GET Designator seperti di project-list/[id])
   const dailySummaryRows = useMemo(() => {
     const jobCategories: {
       name: string;
@@ -2048,40 +2012,83 @@ export default function ProjectDetailPage() {
     }[] = [
       {
         name: 'Pemasangan Tiang/Tiang OSP',
-        matcher: (item) => item.jenis === 'Tiang',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('tiang');
+        },
         defaultUnit: 'Batang',
       },
       {
         name: 'Pekerjaan Galian & Boring',
-        matcher: (item) => item.jenis === 'Galian',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('galian') || j.includes('boring');
+        },
         defaultUnit: 'Meter',
       },
       {
         name: 'Pemasangan Handhole/Manhole',
-        matcher: (item) => item.jenis === 'Handhole',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('handhole') || j.includes('manhole');
+        },
         defaultUnit: 'Unit',
       },
       {
         name: 'Penarikan Kabel Fiber Optik',
-        matcher: (item) => item.jenis === 'Kabel',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('kabel');
+        },
         defaultUnit: 'Meter',
       },
       {
         name: 'Jembatan & Trays FO',
-        matcher: (item) => item.jenis === 'Jembatan',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('jembatan') || j.includes('tray');
+        },
         defaultUnit: 'Meter',
       },
       {
         name: 'Penyambungan/Jointing',
-        matcher: (item) => item.jenis === 'Terminasi' || item.jenis === 'Jointing',
+        matcher: (item) => {
+          const j = (item.jenis || item.type || '').toLowerCase();
+          return j.includes('terminasi') || j.includes('jointing') || j.includes('splicing');
+        },
         defaultUnit: 'Titik',
       },
     ];
 
+    // Deteksi jika ada jenis pekerjaan lain di luar 6 grup standar di atas
+    const standardMatchedIds = new Set<string>();
+    jobCategories.forEach((cat) => {
+      designatorItems.filter(cat.matcher).forEach((it) => standardMatchedIds.add(it.idVolume));
+    });
+
+    const otherItems = designatorItems.filter((it) => !standardMatchedIds.has(it.idVolume));
+    const extraGroupsMap: Record<string, DesignatorItem[]> = {};
+    otherItems.forEach((it) => {
+      const g = (it.jenis || (it as any).type || 'Lainnya').trim();
+      if (!extraGroupsMap[g]) extraGroupsMap[g] = [];
+      extraGroupsMap[g].push(it);
+    });
+
+    Object.entries(extraGroupsMap).forEach(([gName, items]) => {
+      jobCategories.push({
+        name: gName,
+        matcher: (it) => (it.jenis || (it as any).type || '').trim().toLowerCase() === gName.toLowerCase(),
+        defaultUnit: items[0]?.satuan || (items[0] as any)?.unit || 'Item',
+      });
+    });
+
     return jobCategories.map((cat) => {
       const matchedItems = designatorItems.filter(cat.matcher);
-      const unit = matchedItems[0]?.satuan || cat.defaultUnit;
-      const volumeBOQ = matchedItems.reduce((acc, it) => acc + (Number(it.volumeTarget) || 0), 0);
+      const unit = matchedItems[0]?.satuan || (matchedItems[0] as any)?.unit || cat.defaultUnit;
+      const volumeBOQ = matchedItems.reduce(
+        (acc, it) => acc + (Number(it.volumeTarget) || Number((it as any).boqVolume) || 0),
+        0
+      );
 
       let volumeKemarin = 0;
       let volumeHariIni = 0;
@@ -2162,11 +2169,13 @@ export default function ProjectDetailPage() {
   }, [dailyReportsMap, decodedId, selectedReportDate, designatorItems]);
 
   // Info Lapangan (Mandor & Alat Berat & Cuaca) pada Tanggal yang Dipilih
+  // Data otomatis didapat dari submit (implementasi-progress) pada tanggal terkait
   const currentDayFieldInfo = useMemo(() => {
     const dbReport = dailyReportsMap[selectedReportDate];
 
     let mandors: string[] = [];
     let alatKerjaList: string[] = [];
+    let cuacaFromRecords: string = '';
 
     designatorItems.forEach((it) => {
       const recs = it.dailyRecords?.[selectedReportDate];
@@ -2174,74 +2183,21 @@ export default function ProjectDetailPage() {
         recs.forEach((r) => {
           if (r.mandor && !mandors.includes(r.mandor)) mandors.push(r.mandor);
           if (r.alatKerja && !alatKerjaList.includes(r.alatKerja)) alatKerjaList.push(r.alatKerja);
+          if (r.cuaca && !cuacaFromRecords) cuacaFromRecords = r.cuaca;
         });
       }
     });
 
-    const fallbackTenaga = mandors.length > 0 ? `${mandors.join(', ')} (${mandors.length * 8} Orang)` : '26 Orang';
-    const fallbackAlat = alatKerjaList.length > 0 ? alatKerjaList.join(', ') : '-';
+    const tenagaKerja = dbReport?.tenagaKerja || (mandors.length > 0 ? `${mandors.join(', ')} (${mandors.length * 8} Orang)` : '-');
+    const alatBerat = dbReport?.alatBerat || (alatKerjaList.length > 0 ? alatKerjaList.join(', ') : '-');
+    const cuaca = dbReport?.cuaca || cuacaFromRecords || (mandors.length > 0 || alatKerjaList.length > 0 ? 'CERAH' : '-');
 
     return {
-      tenagaKerja: dbReport?.tenagaKerja || fallbackTenaga,
-      alatBerat: dbReport?.alatBerat || fallbackAlat,
-      cuaca: dbReport?.cuaca || 'CERAH',
+      tenagaKerja,
+      alatBerat,
+      cuaca,
     };
   }, [dailyReportsMap, designatorItems, selectedReportDate]);
-
-  const handleOpenEditDailyInfo = () => {
-    setDailyInfoFormData({
-      tenagaKerja: currentDayFieldInfo.tenagaKerja,
-      alatBerat: currentDayFieldInfo.alatBerat === '-' ? '' : currentDayFieldInfo.alatBerat,
-      cuaca: currentDayFieldInfo.cuaca || 'CERAH',
-      kendala: currentDailyNotes.kendala === '-' ? '' : currentDailyNotes.kendala,
-      solusi: currentDailyNotes.solusi === '-' ? '' : currentDailyNotes.solusi,
-    });
-    setIsEditDailyInfoOpen(true);
-  };
-
-  const handleSaveDailyInfo = async () => {
-    const targetId = project?.id || decodedId;
-    if (!targetId) return;
-
-    setIsSavingDailyInfo(true);
-    try {
-      const res = await saveDailyReportNoteAction(targetId, selectedReportDate, dailyInfoFormData);
-      if (!res.success) {
-        throw new Error(res.error || 'Gagal menyimpan ke database server');
-      }
-
-      const newMap = {
-        ...dailyReportsMap,
-        [selectedReportDate]: {
-          ...dailyReportsMap[selectedReportDate],
-          ...dailyInfoFormData,
-          updatedAt: new Date().toISOString(),
-        },
-      };
-      setDailyReportsMap(newMap);
-
-      const storageKey = `project_daily_notes_${targetId}_${selectedReportDate}`;
-      try {
-        localStorage.setItem(storageKey, JSON.stringify({
-          kendala: dailyInfoFormData.kendala,
-          solusi: dailyInfoFormData.solusi,
-          updatedAt: new Date().toISOString(),
-        }));
-      } catch (e) {}
-
-      if (project) {
-        await updateProject(project.id, { dailyReports: newMap });
-      }
-
-      toast.success(`Info lapangan tanggal ${selectedReportDate} berhasil disimpan ke database server!`);
-      setIsEditDailyInfoOpen(false);
-    } catch (err: any) {
-      console.error('Failed to save daily info', err);
-      toast.error(err?.message || 'Gagal menyimpan info lapangan');
-    } finally {
-      setIsSavingDailyInfo(false);
-    }
-  };
 
   // Derived values
   const totalBOQ = project?.boqItems?.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0) || 0;
@@ -3960,10 +3916,6 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2" data-html2canvas-ignore="true">
-                    <Button size="sm" variant="outline" onClick={handleOpenEditDailyInfo}>
-                      <Edit3 className="w-4 h-4 mr-1.5" />
-                      Edit Info Lapangan
-                    </Button>
                     <Button size="sm" variant="outline" onClick={handleExportImage} disabled={isExporting}>
                       <FileText className="w-4 h-4 mr-2" />
                       {exportText}
@@ -3971,12 +3923,12 @@ export default function ProjectDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-6">
-                  {/* Header Info */}
+                  {/* Header Info (Data otomatis dari submit implementasi-progress pada tanggal terpilih) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/20 p-4 border rounded-md">
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Nomor Kontrak</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">{project.contractNo || '-'}</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{project.contractNo || (project as any).noSpk || '-'}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Ruas/Link</Label>
@@ -3984,11 +3936,11 @@ export default function ProjectDetailPage() {
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Witel</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">WITEL SUMBAGSEL</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{project.location || (project as any).witel || '-'}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Mitra Pelaksana</Label>
-                        <div className="col-span-2 text-[10pt] font-semibold">PT. MITRA AKSES INSANI</div>
+                        <div className="col-span-2 text-[10pt] font-semibold">{(project as any).partnerName || 'PT. MITRA AKSES INSANI'}</div>
                       </div>
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Jumlah Tenaga Kerja</Label>
@@ -4001,14 +3953,18 @@ export default function ProjectDetailPage() {
                       <div className="grid grid-cols-3 items-center gap-2">
                         <Label className="text-[10pt] text-muted-foreground">Cuaca / Hujan</Label>
                         <div className="col-span-2 text-[10pt] font-semibold">
-                          <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-[9pt] font-semibold uppercase",
-                            currentDayFieldInfo.cuaca?.toUpperCase() === 'CERAH' && "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
-                            currentDayFieldInfo.cuaca?.toUpperCase() === 'BERAWAN' && "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400",
-                            currentDayFieldInfo.cuaca?.toUpperCase().includes('HUJAN') && "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
-                          )}>
-                            {currentDayFieldInfo.cuaca}
-                          </span>
+                          {currentDayFieldInfo.cuaca && currentDayFieldInfo.cuaca !== '-' ? (
+                            <span className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded text-[9pt] font-semibold uppercase",
+                              currentDayFieldInfo.cuaca?.toUpperCase() === 'CERAH' && "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+                              currentDayFieldInfo.cuaca?.toUpperCase() === 'BERAWAN' && "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400",
+                              currentDayFieldInfo.cuaca?.toUpperCase().includes('HUJAN') && "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                            )}>
+                              {currentDayFieldInfo.cuaca}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground font-normal">-</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -4054,7 +4010,9 @@ export default function ProjectDetailPage() {
                           <TableHead rowSpan={2} className="text-left border-r border-border align-middle font-semibold text-foreground px-4">
                             Lokasi<br />Pekerjaan/Posisi
                           </TableHead>
-                          <TableHead colSpan={7} className="text-center border-r border-b border-border font-semibold text-foreground px-4">SAT012</TableHead>
+                          <TableHead colSpan={7} className="text-center border-r border-b border-border font-semibold text-foreground px-4">
+                            {project.contractNo || project.name || 'SAT012'}
+                          </TableHead>
                           <TableHead rowSpan={2} className="align-middle text-center font-semibold text-foreground bg-muted/40 px-4">
                             Volume<br />Sisa Pekerjaan
                           </TableHead>
@@ -4093,9 +4051,6 @@ export default function ProjectDetailPage() {
                       <Label className="text-[11pt] font-semibold text-foreground">
                         Catatan Kendala & Solusi ({formatDisplayDate(selectedReportDate).fullDate})
                       </Label>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground" onClick={handleOpenEditDailyInfo} data-html2canvas-ignore="true">
-                        <Edit3 className="w-3.5 h-3.5 mr-1" /> Edit Catatan
-                      </Button>
                     </div>
                     <div className="grid grid-cols-[100px_1fr] items-start gap-2">
                       <Label className="text-[10pt] font-semibold text-muted-foreground mt-1">Kendala</Label>
@@ -4108,104 +4063,6 @@ export default function ProjectDetailPage() {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Modal Edit Info Lapangan & Catatan Harian (Database Server) */}
-              <Dialog open={isEditDailyInfoOpen} onOpenChange={setIsEditDailyInfoOpen}>
-                <DialogContent className="sm:max-w-[550px] p-6">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                      <Edit3 className="w-5 h-5 text-primary" />
-                      Edit Info Lapangan & Catatan Harian
-                    </DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground">
-                      Perbarui informasi personil, alat berat, cuaca, serta kendala & solusi per tanggal laporan. Data langsung tersimpan di database server.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-4 py-2">
-                    <div className="p-3 bg-muted/40 rounded-md border text-xs space-y-1">
-                      <div className="font-medium text-foreground">Tanggal Laporan:</div>
-                      <div className="font-semibold text-primary text-sm">{formatDisplayDate(selectedReportDate).fullDate} ({selectedReportDate})</div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold">Jumlah Tenaga Kerja</Label>
-                        <Input
-                          value={dailyInfoFormData.tenagaKerja}
-                          onChange={(e) => setDailyInfoFormData({ ...dailyInfoFormData, tenagaKerja: e.target.value })}
-                          placeholder="Contoh: Tim OSP Telkom (16 Orang)"
-                          className="text-xs"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold">Jumlah Alat Berat</Label>
-                        <Input
-                          value={dailyInfoFormData.alatBerat}
-                          onChange={(e) => setDailyInfoFormData({ ...dailyInfoFormData, alatBerat: e.target.value })}
-                          placeholder="Contoh: Mobil Crane 3T, Excavator Mini"
-                          className="text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Kondisi Cuaca</Label>
-                      <Select
-                        value={dailyInfoFormData.cuaca}
-                        onValueChange={(val) => setDailyInfoFormData({ ...dailyInfoFormData, cuaca: val })}
-                      >
-                        <SelectTrigger className="text-xs w-full">
-                          <SelectValue placeholder="Pilih Kondisi Cuaca" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CERAH" className="text-xs">CERAH</SelectItem>
-                          <SelectItem value="BERAWAN" className="text-xs">BERAWAN</SelectItem>
-                          <SelectItem value="HUJAN RINGAN" className="text-xs">HUJAN RINGAN</SelectItem>
-                          <SelectItem value="HUJAN LEBAT" className="text-xs">HUJAN LEBAT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Catatan Kendala Lapangan</Label>
-                      <Textarea
-                        value={dailyInfoFormData.kendala}
-                        onChange={(e) => setDailyInfoFormData({ ...dailyInfoFormData, kendala: e.target.value })}
-                        placeholder="Uraikan kendala lapangan jika ada (misal: penyeberangan jalan padat, kontur tanah berbatu)..."
-                        className="text-xs min-h-[70px]"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Solusi & Tindak Lanjut</Label>
-                      <Textarea
-                        value={dailyInfoFormData.solusi}
-                        onChange={(e) => setDailyInfoFormData({ ...dailyInfoFormData, solusi: e.target.value })}
-                        placeholder="Langkah mitigasi atau solusi teknis yang telah diambil..."
-                        className="text-xs min-h-[70px]"
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditDailyInfoOpen(false)} disabled={isSavingDailyInfo}>
-                      Batal
-                    </Button>
-                    <Button size="sm" onClick={handleSaveDailyInfo} disabled={isSavingDailyInfo}>
-                      {isSavingDailyInfo ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          Menyimpan...
-                        </>
-                      ) : (
-                        'Simpan Info Lapangan'
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </TabsContent>
             <TabsContent value="progress">
               <div className="space-y-6">

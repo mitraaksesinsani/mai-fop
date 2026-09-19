@@ -7,6 +7,7 @@ import {
   addWarehouseAction,
   updateWarehouseAction,
   deleteWarehouseAction,
+  batchDeleteWarehousesAction,
   batchAddWarehousesAction,
 } from '@/app/actions/masterData';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -60,10 +61,10 @@ export default function WarehousePage() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-
-  // Delete state
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Preview state
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -279,6 +280,28 @@ export default function WarehousePage() {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    const idsToDelete = Array.from(selectedIds);
+    try {
+      const res = await batchDeleteWarehousesAction(idsToDelete);
+      if (res.success) {
+        toast.success(`${idsToDelete.length} Gudang berhasil dihapus`);
+        setSelectedIds(new Set());
+        setIsBulkDeleteOpen(false);
+        await fetchWarehouses();
+      } else {
+        toast.error(res.error || 'Gagal menghapus gudang terpilih');
+      }
+    } catch (error) {
+      console.error('Failed to bulk delete warehouses', error);
+      toast.error('Gagal menghapus gudang terpilih');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   // Excel Handlers
   const handleExport = async () => {
     exportToExcel(filteredAndSortedWarehouses, 'Master_Data_Gudang', EXCEL_COLUMNS);
@@ -344,6 +367,16 @@ export default function WarehousePage() {
           <Button onClick={openCreateDialog} size="sm" className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px]">
             <Plus className="w-4 h-4" /> Tambah Gudang
           </Button>
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px] bg-red-600 hover:bg-red-700 text-white animate-in fade-in"
+            >
+              <Trash2 className="w-4 h-4" /> Hapus ({selectedIds.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -428,6 +461,37 @@ export default function WarehousePage() {
           </Select>
         </div>
       </div>
+
+      {/* Bulk Selection Notification Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg text-[13px] animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+            <span className="font-medium text-red-900 dark:text-red-300">
+              {selectedIds.size} Gudang dipilih
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-[28px] text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[28px] text-[12px] gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Hapus {selectedIds.size} Gudang Terpilih
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Table Single Border */}
       <div className="overflow-hidden rounded-md border bg-card">
@@ -779,6 +843,43 @@ export default function WarehousePage() {
               <img src={previewImage} alt="Preview" className="max-w-full max-h-[70vh] rounded-md shadow-xs border bg-background" />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal Dialog Konfirmasi Hapus Massal */}
+      <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] text-destructive flex items-center gap-2 font-semibold">
+              <Trash2 className="w-4 h-4" />
+              Konfirmasi Hapus Massal
+            </DialogTitle>
+            <DialogDescription className="text-[13px] pt-2">
+              Apakah Anda yakin ingin menghapus <span className="font-semibold text-foreground">{selectedIds.size} Gudang terpilih</span>?
+              Tindakan ini akan menghapus data secara permanen dari basis data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={() => setIsBulkDeleteOpen(false)}
+              className="h-[32px] text-[13px]"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={confirmBulkDelete}
+              className="h-[32px] text-[13px]"
+            >
+              {isBulkDeleting ? 'Menghapus...' : `Ya, Hapus (${selectedIds.size})`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

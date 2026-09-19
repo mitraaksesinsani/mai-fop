@@ -58,7 +58,6 @@ import {
   DesignatorItem,
   SatuanPekerjaan,
   JenisPekerjaan,
-  DEFAULT_DESIGNATOR_ITEMS,
   getGroupSummaryList,
   calculateGroupProgress,
   generateGroupSCurveData,
@@ -70,7 +69,8 @@ import {
   getItemDailyVolume,
   toISODateString,
 } from '@/lib/designatorProgress';
-import { MASTER_ALAT_KERJA_DATA } from '@/lib/constants/masterData';
+import { getDesignatorProgressAction, saveDesignatorProgressAction } from '@/app/actions/projects';
+import { getAlatKerjaAction, getMandorsAction } from '@/app/actions/masterData';
 import { toast } from 'sonner';
 
 const SATUAN_OPTIONS: SatuanPekerjaan[] = [
@@ -99,57 +99,59 @@ export default function ProjectDetailPreviewPage() {
   const decodedId = decodeURIComponent(params?.id || '');
   const selectedGroup = searchParams.get('group') || null;
 
-  // Cari data proyek
+  // Cari data proyek nyata dari database / context
   const foundProject = projects.find((p) => p.id === decodedId);
-  const project: Project = foundProject || {
-    id: decodedId,
-    name: `Proyek Fiber Optik (${decodedId.slice(0, 8)})`,
-    customer: 'PT Telkomsel Tbk',
-    type: 'Backbone Fiber',
-    location: 'Wilayah Operasional',
-    contractNo: `CTR/FO/${decodedId.slice(0, 8).toUpperCase()}/2026`,
-    startDate: '2026-09-01',
-    targetDate: '2026-09-30',
-    manager: 'Budi Santoso, S.T.',
-    status: 'Implementation',
-  };
+  const project = foundProject;
 
-  // State designator items dengan fallback DEFAULT_DESIGNATOR_ITEMS
-  const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>(() => {
-    return (foundProject as any)?.designatorItems?.length
-      ? (foundProject as any).designatorItems
-      : DEFAULT_DESIGNATOR_ITEMS;
-  });
+  // State designator items dari database
+  const [designatorItems, setDesignatorItems] = useState<DesignatorItem[]>([]);
+  const [alatKerjaList, setAlatKerjaList] = useState<Array<{ id: string; name: string }>>([]);
+
+  const [mandorList, setMandorList] = useState<{ id: string; name: string; specialization?: string }[]>([]);
+
+  useEffect(() => {
+    getAlatKerjaAction().then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setAlatKerjaList(res.data.map((a: any) => ({ id: a.id, name: a.name || a.namaAlat })));
+      }
+    }).catch(() => {});
+
+    getMandorsAction().then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setMandorList(res.data.map((m: any) => ({ id: m.id, name: m.name, specialization: m.specialization })));
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!decodedId) return;
-    try {
-      const saved = localStorage.getItem(`proper_project_designators_${decodedId}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setDesignatorItems(parsed);
-          return;
-        }
-      }
-      const projItems = (foundProject as any)?.designatorItems;
-      if (Array.isArray(projItems) && projItems.length > 0) {
-        setDesignatorItems(projItems);
+    getDesignatorProgressAction(decodedId).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setDesignatorItems(res.data);
+      } else if (foundProject && Array.isArray((foundProject as any).designatorItems)) {
+        setDesignatorItems((foundProject as any).designatorItems);
       } else {
-        setDesignatorItems(DEFAULT_DESIGNATOR_ITEMS);
+        setDesignatorItems([]);
       }
-    } catch (err) {
-      console.error('Failed to load project designators', err);
-      setDesignatorItems(DEFAULT_DESIGNATOR_ITEMS);
-    }
+    }).catch((err) => {
+      console.warn('Failed to load project designators from DB:', err);
+      if (foundProject && Array.isArray((foundProject as any).designatorItems)) {
+        setDesignatorItems((foundProject as any).designatorItems);
+      } else {
+        setDesignatorItems([]);
+      }
+    });
   }, [decodedId, foundProject]);
 
-  const handleUpdateItems = (updated: DesignatorItem[]) => {
+  const handleUpdateItems = async (updated: DesignatorItem[]) => {
     setDesignatorItems(updated);
     try {
       localStorage.setItem(`proper_project_designators_${decodedId}`, JSON.stringify(updated));
     } catch (err) {
       console.error('Failed to save designator items', err);
+    }
+    if (decodedId) {
+      await saveDesignatorProgressAction(decodedId, updated);
     }
   };
 
@@ -171,8 +173,8 @@ export default function ProjectDetailPreviewPage() {
 
   // Kalkulasi metrik keseluruhan proyek
   const overallMetrics = useMemo(() => {
-    return calculateOverallProjectProgress(designatorItems);
-  }, [designatorItems]);
+    return calculateOverallProjectProgress(designatorItems, project?.startDate, project?.targetDate);
+  }, [designatorItems, project?.startDate, project?.targetDate]);
 
   const overallSCurveData = useMemo(() => {
     return generateSCurveData(designatorItems, progressDates);
@@ -357,6 +359,18 @@ export default function ProjectDetailPreviewPage() {
       volumeTarget: 1000,
     });
   };
+
+  if (!project) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <h2 className="text-xl font-bold text-foreground">Proyek Tidak Ditemukan</h2>
+        <p className="text-sm text-muted-foreground">Proyek dengan ID &quot;{decodedId}&quot; tidak ditemukan.</p>
+        <Button onClick={() => router.push('/project-list')} variant="outline" className="text-[13px] px-3 py-1.5 h-auto">
+          Kembali ke Daftar Proyek
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in text-[13px] pb-12">
@@ -927,7 +941,7 @@ export default function ProjectDetailPreviewPage() {
                       <SelectValue placeholder="Pilih Alat Kerja" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MASTER_ALAT_KERJA_DATA.map((alat) => (
+                      {alatKerjaList.map((alat) => (
                         <SelectItem key={alat.id} value={alat.name} className="text-[13px]">
                           {alat.name}
                         </SelectItem>
@@ -940,13 +954,21 @@ export default function ProjectDetailPreviewPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="prog-mandor" className="text-[13px]">Mandor / Tim</Label>
-                  <Input
-                    id="prog-mandor"
+                  <Select
                     value={selectedMandor}
-                    onChange={(e) => setSelectedMandor(e.target.value)}
-                    placeholder="Nama Mandor / Tim Lapangan"
-                    className="py-[6px] px-[8px] text-[13px] h-auto"
-                  />
+                    onValueChange={(val) => setSelectedMandor(val || '')}
+                  >
+                    <SelectTrigger id="prog-mandor" className="py-[6px] px-[8px] text-[13px] h-auto">
+                      <SelectValue placeholder="Pilih Mandor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mandorList.map((m) => (
+                        <SelectItem key={m.id} value={m.name} className="text-[13px]">
+                          {m.name} {m.specialization ? `(${m.specialization})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

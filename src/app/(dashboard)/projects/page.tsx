@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FolderKanban,
@@ -26,22 +26,31 @@ import { useProject, Project } from '@/context/ProjectContext';
 import { useBowheer, Bowheer } from '@/context/BowheerContext';
 import { toast } from 'sonner';
 import { getStatusLabel } from '@/lib/utils';
-
-const AVAILABLE_PROJECT_MANAGERS = [
-  { name: 'Budi Santoso, S.T.', role: 'Site Manager' },
-  { name: 'Dedi Mulyadi', role: 'Site Manager' },
-  { name: 'Ahmad Hidayat', role: 'Project Manager' },
-  { name: 'Dewi Lestari, S.E.', role: 'Project Controller' },
-];
+import { getUsersAction } from '@/app/actions/masterData';
 
 export default function ProjectsPage() {
   const router = useRouter();
   const { projects, addProject, updateProject, deleteProject } = useProject();
   const { bowheers } = useBowheer();
   const activeBowheers = useMemo(() => bowheers.filter((b: Bowheer) => b.status === 'ACTIVE'), [bowheers]);
+  const [managers, setManagers] = useState<Array<{ name: string; role: string }>>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   
+  // Fetch real system users as managers
+  useEffect(() => {
+    getUsersAction().then((res) => {
+      if (res.success && res.data && res.data.length > 0) {
+        setManagers(res.data.map((u) => ({ name: u.fullName || u.username, role: u.role || 'Member' })));
+      } else {
+        setManagers([]);
+      }
+    }).catch((err) => {
+      console.warn('Failed to load users for project managers:', err);
+      setManagers([]);
+    });
+  }, []);
+
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -52,15 +61,28 @@ export default function ProjectsPage() {
   const [newProjectData, setNewProjectData] = useState<Partial<Project>>({
     id: '',
     name: '',
-    customer: 'PT Telkomsel Tbk',
+    customer: '',
     type: 'Backbone Fiber',
-    location: 'DKI Jakarta',
+    location: '',
     contractNo: '',
     startDate: new Date().toISOString().split('T')[0],
     targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    manager: 'Budi Santoso, S.T.',
+    manager: '',
   });
   const [editProjectData, setEditProjectData] = useState<Partial<Project>>({});
+
+  // Synchronize default customer/manager when modal opens or lists load
+  useEffect(() => {
+    if (!newProjectData.customer && activeBowheers.length > 0) {
+      setNewProjectData((prev) => ({ ...prev, customer: activeBowheers[0].name }));
+    }
+  }, [activeBowheers, newProjectData.customer]);
+
+  useEffect(() => {
+    if (!newProjectData.manager && managers.length > 0) {
+      setNewProjectData((prev) => ({ ...prev, manager: managers[0].name }));
+    }
+  }, [managers, newProjectData.manager]);
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,13 +99,13 @@ export default function ProjectsPage() {
     const createdProj: Project = {
       id: newUuid,
       name: newProjectData.name.trim(),
-      customer: newProjectData.customer || 'PT Telkomsel Tbk',
+      customer: newProjectData.customer || (activeBowheers[0]?.name || '-'),
       type: newProjectData.type || 'Backbone Fiber',
       location: newProjectData.location?.trim() || 'Indonesia',
       contractNo: newProjectData.contractNo?.trim() || autoId,
       startDate: newProjectData.startDate || new Date().toISOString().split('T')[0],
       targetDate: newProjectData.targetDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      manager: newProjectData.manager || 'Budi Santoso, S.T.',
+      manager: newProjectData.manager || (managers[0]?.name || '-'),
       status: 'Planning',
     };
 
@@ -104,13 +126,13 @@ export default function ProjectsPage() {
     setNewProjectData({
       id: '',
       name: '',
-      customer: 'PT Telkomsel Tbk',
+      customer: activeBowheers[0]?.name || '',
       type: 'Backbone Fiber',
-      location: 'Jawa Tengah',
+      location: '',
       contractNo: '',
       startDate: new Date().toISOString().split('T')[0],
       targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      manager: 'Budi Santoso, S.T.',
+      manager: managers[0]?.name || '',
     });
   };
 
@@ -322,12 +344,12 @@ export default function ProjectsPage() {
                           <SelectValue placeholder="Pilih Project Manager / PIC" />
                         </SelectTrigger>
                         <SelectContent>
-                          {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
+                          {managers.map((pm) => (
                             <SelectItem key={pm.name} value={pm.name} className="text-[13px]">
                               {pm.name} ({pm.role})
                             </SelectItem>
                           ))}
-                          {newProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === newProjectData.manager) && (
+                          {newProjectData.manager && !managers.some((pm) => pm.name === newProjectData.manager) && (
                             <SelectItem value={newProjectData.manager} className="text-[13px]">{newProjectData.manager}</SelectItem>
                           )}
                         </SelectContent>
@@ -532,12 +554,12 @@ export default function ProjectsPage() {
                     <SelectValue placeholder="Pilih Project Manager / PIC" />
                   </SelectTrigger>
                   <SelectContent>
-                    {AVAILABLE_PROJECT_MANAGERS.map((pm) => (
+                    {managers.map((pm) => (
                       <SelectItem key={pm.name} value={pm.name} className="text-[13px]">
                         {pm.name} ({pm.role})
                       </SelectItem>
                     ))}
-                    {editProjectData.manager && !AVAILABLE_PROJECT_MANAGERS.some((pm) => pm.name === editProjectData.manager) && (
+                    {editProjectData.manager && !managers.some((pm) => pm.name === editProjectData.manager) && (
                       <SelectItem value={editProjectData.manager} className="text-[13px]">{editProjectData.manager}</SelectItem>
                     )}
                   </SelectContent>

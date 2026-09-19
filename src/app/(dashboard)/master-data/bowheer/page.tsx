@@ -68,7 +68,7 @@ const EXCEL_COLUMNS: ColumnDefinition[] = [
 ];
 
 export default function BowheerMasterPage() {
-  const { bowheers, addBowheer, updateBowheer, deleteBowheer, refreshBowheers, isLoading } = useBowheer();
+  const { bowheers, addBowheer, updateBowheer, deleteBowheer, deleteBowheers, refreshBowheers, isLoading } = useBowheer();
 
   // Search, Filter, Sort State
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +85,8 @@ export default function BowheerMasterPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBowheer, setEditingBowheer] = useState<Bowheer | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Bowheer | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -260,6 +262,22 @@ export default function BowheerMasterPage() {
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      await deleteBowheers(idsToDelete);
+      setSelectedIds(new Set());
+      toast.success(`${idsToDelete.length} Bowheer berhasil dihapus.`);
+      setIsBulkDeleteOpen(false);
+    } catch (err: any) {
+      toast.error('Gagal menghapus data terpilih: ' + (err?.message || 'Error'));
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   // Excel Handlers
   const handleExport = async () => {
     exportToExcel(filteredAndSortedBowheers, 'Master_Data_Bowheer', EXCEL_COLUMNS);
@@ -409,6 +427,18 @@ export default function BowheerMasterPage() {
             <Plus className="w-4 h-4" />
             Tambah Bowheer
           </Button>
+
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px] bg-red-600 hover:bg-red-700 text-white animate-in fade-in"
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus ({selectedIds.size})
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
@@ -434,6 +464,37 @@ export default function BowheerMasterPage() {
           </Select>
         </div>
       </div>
+
+      {/* Bulk Selection Notification Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg text-[13px] animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+            <span className="font-medium text-red-900 dark:text-red-300">
+              {selectedIds.size} Bowheer dipilih
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-[28px] text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[28px] text-[12px] gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Hapus {selectedIds.size} Bowheer Terpilih
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Table Single Border (No Double Outline) */}
       <div className="overflow-hidden rounded-md border bg-card">
@@ -793,6 +854,43 @@ export default function BowheerMasterPage() {
               className="h-[32px] text-[13px]"
             >
               Ya, Hapus Bowheer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Modal Dialog Konfirmasi Hapus Massal */}
+      <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] text-destructive flex items-center gap-2 font-semibold">
+              <Trash2 className="w-4 h-4" />
+              Konfirmasi Hapus Massal
+            </DialogTitle>
+            <DialogDescription className="text-[13px] pt-2">
+              Apakah Anda yakin ingin menghapus <span className="font-semibold text-foreground">{selectedIds.size} Bowheer terpilih</span>?
+              Data yang dihapus tidak dapat dipulihkan dan tidak akan muncul lagi di daftar pilihan Customer proyek baru.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={() => setIsBulkDeleteOpen(false)}
+              className="h-[32px] text-[13px]"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={handleConfirmBulkDelete}
+              className="h-[32px] text-[13px]"
+            >
+              {isBulkDeleting ? 'Menghapus...' : `Ya, Hapus (${selectedIds.size})`}
             </Button>
           </DialogFooter>
         </DialogContent>

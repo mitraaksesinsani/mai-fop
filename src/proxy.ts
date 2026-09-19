@@ -8,8 +8,6 @@ export function proxy(request: NextRequest) {
   // Halaman atau asset yang bersifat publik (tidak butuh auth)
   const isPublic =
     pathname === '/login' ||
-    pathname.startsWith('/track') ||
-    pathname.startsWith('/print') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/images') ||

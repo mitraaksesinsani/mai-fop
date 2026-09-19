@@ -63,6 +63,8 @@ import { toast } from "sonner";
 
 import { MASTER_DESIGNATOR_DATA, MASTER_ALAT_KERJA_DATA } from "@/lib/constants/masterData";
 import { saveDailyReportNoteAction } from "@/app/actions/projects";
+import { getDesignatorsAction, getAlatKerjaAction, getMandorsAction } from "@/app/actions/masterData";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CumulativeProgressTableProps {
   items: DesignatorItem[];
@@ -114,6 +116,8 @@ export default function CumulativeProgressTable({
   requireReasonForAdd = true,
   projectId,
 }: CumulativeProgressTableProps) {
+  const { user } = useAuth();
+  const currentUserRole = user?.role || "Admin";
   const [selectedJenis, setSelectedJenis] = useState<string>("Semua Jenis");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDailyModalOpen, setIsAddDailyModalOpen] = useState(false);
@@ -165,6 +169,40 @@ export default function CumulativeProgressTable({
   const [activeItem, setActiveItem] = useState<DesignatorItem | null>(null);
   const [actionReason, setActionReason] = useState("");
 
+  // Master data real dari database server
+  const [serverDesignators, setServerDesignators] = useState<any[]>([]);
+  const [serverAlatKerja, setServerAlatKerja] = useState<any[]>([]);
+  const [serverMandors, setServerMandors] = useState<any[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getDesignatorsAction().then((res) => {
+      if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setServerDesignators(res.data);
+      }
+    }).catch(() => {});
+
+    getAlatKerjaAction().then((res) => {
+      if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setServerAlatKerja(res.data);
+      }
+    }).catch(() => {});
+
+    getMandorsAction().then((res) => {
+      if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setServerMandors(res.data);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const availableDesignators = serverDesignators.length > 0 ? serverDesignators : MASTER_DESIGNATOR_DATA;
+  const availableAlatKerja = serverAlatKerja.length > 0 ? serverAlatKerja : MASTER_ALAT_KERJA_DATA;
+  const availableMandors = serverMandors;
+
   // Form input tambah item baru
   const [newItemForm, setNewItemForm] = useState<{
     idVolume: string;
@@ -196,8 +234,9 @@ export default function CumulativeProgressTable({
   const [inputEvidence, setInputEvidence] = useState<string>("");
   const [inputKendala, setInputKendala] = useState<string>("");
   const [inputSolusi, setInputSolusi] = useState<string>("");
+  const [inputCuaca, setInputCuaca] = useState<string>("CERAH");
 
-  // Muat kendala & solusi yang tersimpan ketika modal dibuka atau tanggal berubah
+  // Muat kendala, solusi & cuaca yang tersimpan ketika modal dibuka atau tanggal berubah
   useEffect(() => {
     if (!isAddDailyModalOpen) return;
     const storageKey = projectId ? `project_daily_notes_${projectId}_${selectedDate}` : `daily_notes_${selectedDate}`;
@@ -207,6 +246,7 @@ export default function CumulativeProgressTable({
         const parsed = JSON.parse(savedNotes);
         setInputKendala(parsed.kendala || "");
         setInputSolusi(parsed.solusi || "");
+        if (parsed.cuaca) setInputCuaca(parsed.cuaca);
         return;
       }
     } catch {
@@ -216,17 +256,20 @@ export default function CumulativeProgressTable({
     // Fallback dari dailyRecords
     let foundKendala = "";
     let foundSolusi = "";
+    let foundCuaca = "";
     for (const it of items) {
       const recs = it.dailyRecords?.[selectedDate];
       if (recs && recs.length > 0) {
         for (const r of recs) {
           if (r.kendala && !foundKendala) foundKendala = r.kendala;
           if (r.solusi && !foundSolusi) foundSolusi = r.solusi;
+          if (r.cuaca && !foundCuaca) foundCuaca = r.cuaca;
         }
       }
     }
     setInputKendala(foundKendala);
     setInputSolusi(foundSolusi);
+    setInputCuaca(foundCuaca || "CERAH");
   }, [selectedDate, isAddDailyModalOpen, projectId, items]);
 
   // Sinkronkan selectedIdVolume jika items berubah
@@ -283,7 +326,7 @@ export default function CumulativeProgressTable({
           id: Math.random().toString(36).substring(2, 9),
           action: "add",
           reason: actionReason,
-          role: currentUserRole,
+          role: (currentUserRole === "Site Manager" ? "Site Manager" : "PMO"),
           timestamp: new Date().toISOString(),
           details: `Menambahkan designator baru: ${cleanDesignator} (${cleanId})`,
         },
@@ -359,7 +402,7 @@ export default function CumulativeProgressTable({
               id: Math.random().toString(36).substring(2, 9),
               action: "edit",
               reason: actionReason,
-              role: currentUserRole,
+              role: (currentUserRole === "Site Manager" ? "Site Manager" : "PMO"),
               timestamp: new Date().toISOString(),
               details: `Mengubah data designator ${cleanDesignator}`,
             } as ChangeLogEntry,
@@ -421,6 +464,7 @@ export default function CumulativeProgressTable({
           evidence: inputEvidence,
           kendala: inputKendala,
           solusi: inputSolusi,
+          cuaca: inputCuaca,
         });
         currentRecords[selectedDate] = dayRecords;
 
@@ -439,6 +483,7 @@ export default function CumulativeProgressTable({
       localStorage.setItem(storageKey, JSON.stringify({
         kendala: inputKendala,
         solusi: inputSolusi,
+        cuaca: inputCuaca,
         updatedAt: new Date().toISOString(),
       }));
     } catch (err) {
@@ -446,11 +491,14 @@ export default function CumulativeProgressTable({
     }
 
     if (projectId) {
+      const selectedMandorObj = availableMandors.find((m: any) => m.name === selectedMandor);
+      const teamSizeStr = selectedMandorObj?.teamSize ? ` (${selectedMandorObj.teamSize} Orang)` : ' (8 Orang)';
       saveDailyReportNoteAction(projectId, selectedDate, {
         kendala: inputKendala || undefined,
         solusi: inputSolusi || undefined,
-        tenagaKerja: selectedMandor ? `${selectedMandor} (8 Orang)` : undefined,
+        tenagaKerja: selectedMandor ? `${selectedMandor}${teamSizeStr}` : undefined,
         alatBerat: selectedAlatKerja || undefined,
+        cuaca: inputCuaca || undefined,
       }).catch((err) => console.warn("Failed to sync daily notes to db:", err));
     }
 
@@ -539,16 +587,16 @@ export default function CumulativeProgressTable({
                   value={newItemForm.designator}
                   onValueChange={(val) => {
                     if (!val) return;
-                    const masterItem = MASTER_DESIGNATOR_DATA.find(
-                      (d) => d.code === val,
+                    const masterItem = availableDesignators.find(
+                      (d: any) => d.code === val,
                     );
                     if (masterItem) {
                       setNewItemForm({
                         ...newItemForm,
                         designator: masterItem.code,
-                        namaDeskripsi: masterItem.description,
-                        jenis: masterItem.type as any,
-                        satuan: masterItem.unit as any,
+                        namaDeskripsi: masterItem.description || masterItem.namaDeskripsi || '',
+                        jenis: (masterItem.type || masterItem.jenis || 'Galian') as any,
+                        satuan: (masterItem.unit || masterItem.satuan || 'Meter') as any,
                       });
                     }
                   }}
@@ -557,13 +605,13 @@ export default function CumulativeProgressTable({
                     <SelectValue placeholder="Pilih Designator..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {MASTER_DESIGNATOR_DATA.map((d) => (
+                    {availableDesignators.map((d: any) => (
                       <SelectItem
                         key={d.code}
                         value={d.code}
                         className="text-[10pt]"
                       >
-                        {d.code} - {d.description}
+                        {d.code} - {d.description || d.namaDeskripsi || ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -766,7 +814,7 @@ export default function CumulativeProgressTable({
                 ) : null;
               })()}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label className="text-[10pt] font-medium">Alat Kerja</Label>
                   <Select
@@ -777,9 +825,9 @@ export default function CumulativeProgressTable({
                       <SelectValue placeholder="Pilih Alat Kerja" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MASTER_ALAT_KERJA_DATA.map((a) => (
+                      {availableAlatKerja.map((a: any) => (
                         <SelectItem
-                          key={a.code}
+                          key={a.code || a.id}
                           value={a.name}
                           className="text-[10pt]"
                         >
@@ -799,17 +847,39 @@ export default function CumulativeProgressTable({
                       <SelectValue placeholder="Pilih Mandor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Budi Santoso" className="text-[10pt]">
-                        Budi Santoso
+                      {availableMandors.map((m: any) => (
+                        <SelectItem
+                          key={m.code || m.id}
+                          value={m.name}
+                          className="text-[10pt]"
+                        >
+                          {m.name} {m.specialization ? `(${m.specialization})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10pt] font-medium">Kondisi Cuaca</Label>
+                  <Select
+                    value={inputCuaca}
+                    onValueChange={(val) => setInputCuaca(val || "CERAH")}
+                  >
+                    <SelectTrigger className="text-[10pt]">
+                      <SelectValue placeholder="Pilih Cuaca" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CERAH" className="text-[10pt]">
+                        CERAH
                       </SelectItem>
-                      <SelectItem
-                        value="Agus Supriyadi"
-                        className="text-[10pt]"
-                      >
-                        Agus Supriyadi
+                      <SelectItem value="BERAWAN" className="text-[10pt]">
+                        BERAWAN
                       </SelectItem>
-                      <SelectItem value="Joko Widodo" className="text-[10pt]">
-                        Joko Anwar
+                      <SelectItem value="HUJAN RINGAN" className="text-[10pt]">
+                        HUJAN RINGAN
+                      </SelectItem>
+                      <SelectItem value="HUJAN DERAS" className="text-[10pt]">
+                        HUJAN DERAS
                       </SelectItem>
                     </SelectContent>
                   </Select>

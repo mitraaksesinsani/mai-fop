@@ -26,6 +26,7 @@ import {
   getUsersAction,
   saveUserAction,
   deleteUserAction,
+  batchDeleteUsersAction,
   batchAddUsersAction,
 } from '@/app/actions/masterData';
 import {
@@ -165,6 +166,8 @@ export default function MasterDataUsersPage() {
   // Delete Dialog State
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<SystemUser | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const loadUsers = async () => {
@@ -434,6 +437,32 @@ export default function MasterDataUsersPage() {
     }
   };
 
+  // Confirm Bulk Delete
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    const usersToDeleteList = users
+      .filter((u) => selectedIds.has(u.id))
+      .map((u) => ({ id: u.id, username: u.username }));
+
+    try {
+      const res = await batchDeleteUsersAction(usersToDeleteList);
+      if (res.success) {
+        toast.success(`${usersToDeleteList.length} Pengguna berhasil dihapus.`);
+        const updated = users.filter((u) => !selectedIds.has(u.id));
+        saveUsersState(updated);
+        setSelectedIds(new Set());
+        setIsBulkDeleteOpen(false);
+      } else {
+        toast.error(res.error || 'Gagal menghapus pengguna terpilih');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Terjadi kesalahan saat menghapus pengguna terpilih');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
 
   // Excel Handlers
   const handleExport = async () => {
@@ -566,6 +595,17 @@ export default function MasterDataUsersPage() {
             <UserPlus className="w-4 h-4" />
             Tambah Pengguna
           </Button>
+
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[32px] my-[6px] mx-[8px] gap-1.5 text-[13px] bg-red-600 hover:bg-red-700 text-white animate-in fade-in"
+            >
+              <Trash2 className="w-4 h-4" /> Hapus ({selectedIds.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -703,6 +743,37 @@ export default function MasterDataUsersPage() {
           </Select>
         </div>
       </div>
+
+      {/* Bulk Selection Notification Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg text-[13px] animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+            <span className="font-medium text-red-900 dark:text-red-300">
+              {selectedIds.size} Pengguna dipilih
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-[28px] text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-[28px] text-[12px] gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Hapus {selectedIds.size} Pengguna Terpilih
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Table Single Border (No Double Outline) */}
       <div className="overflow-hidden rounded-md border bg-card">
@@ -1059,6 +1130,44 @@ export default function MasterDataUsersPage() {
               className="h-[32px] text-[13px]"
             >
               Ya, Hapus Pengguna
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Dialog Konfirmasi Hapus Massal */}
+      <Dialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[16px] text-destructive flex items-center gap-2 font-semibold">
+              <Trash2 className="w-4 h-4" />
+              Konfirmasi Hapus Massal
+            </DialogTitle>
+            <DialogDescription className="text-[13px] pt-2">
+              Apakah Anda yakin ingin menghapus <span className="font-semibold text-foreground">{selectedIds.size} akun pengguna terpilih</span>?
+              Tindakan ini akan menghapus data akses pengguna secara permanen dari basis data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={() => setIsBulkDeleteOpen(false)}
+              className="h-[32px] text-[13px]"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isBulkDeleting}
+              onClick={handleConfirmBulkDelete}
+              className="h-[32px] text-[13px]"
+            >
+              {isBulkDeleting ? 'Menghapus...' : `Ya, Hapus (${selectedIds.size})`}
             </Button>
           </DialogFooter>
         </DialogContent>
